@@ -280,6 +280,7 @@ pre .spl-string { color: #e06c75; }
       SOC//LAB — WINDOWS HOST
     </div>
     <ul class="nav-phases">
+      <li><a href="#phase0">00 Clean Slate</a></li>
       <li><a href="#phase1">01 Splunk Install</a></li>
       <li><a href="#phase2">02 Ubuntu VM</a></li>
       <li><a href="#phase3">03 WinServer VM</a></li>
@@ -372,6 +373,332 @@ pre .spl-string { color: #e06c75; }
 </section>
 
 <main id="main-content">
+
+<!-- ===== PHASE 0 ===== -->
+<section class="phase" id="phase0">
+  <div class="phase-header">
+    <div class="phase-number" style="background:var(--accent-red);">00</div>
+    <div class="phase-title-group">
+      <h2>Clean Slate — Remove Any Previous Splunk Installation</h2>
+      <div class="phase-tag">Do This First &middot; On All Three Machines &middot; Before Installing Anything New</div>
+    </div>
+    <span class="phase-status" style="color:var(--accent-red);border-color:rgba(255,51,85,.35);background:rgba(255,51,85,.07);">Do First</span>
+  </div>
+
+  <div class="info-box danger" style="margin-bottom:24px;">
+    <span class="info-icon">&#x1F9F9;</span>
+    <div><strong>Why this phase exists:</strong> If a previous Splunk install failed, was partially set up, or left behind broken files or services, a fresh install on top of it will inherit those problems. This phase wipes everything cleanly so you truly start from zero. <strong>Run this on all three machines before Phase 1.</strong></div>
+  </div>
+
+  <div class="info-box warning" style="margin-bottom:24px;">
+    <span class="info-icon">&#x26A0;</span>
+    <div><strong>"Command not found" on Ubuntu is completely normal.</strong> If you see <code>sudo: /opt/splunkforwarder/bin/splunk: command not found</code> (as in the screenshot), it simply means the Splunk binary was never placed there &mdash; either it was never installed, or a previous attempt failed before it could finish. The folder may not exist at all. <strong>Do not worry about this error</strong> &mdash; the cleanup steps below are written to handle it gracefully. Just move to the next command.</div>
+  </div>
+
+  <div class="steps">
+
+    <article class="step open">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-num">0.1</span>
+        <h3>&#x1FA9F; Windows Host &mdash; Remove Splunk Enterprise</h3>
+        <span class="step-toggle">&#x25BA;</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          Remove Splunk Enterprise from your Windows PC completely &mdash; the service, the install folder, and the firewall rules.
+          Do this even if a previous install seemed to work partially.
+        </p>
+
+        <div class="instr-block">
+          <div class="instr-block-title">&#x1F4CB; Instructions &mdash; open PowerShell as Administrator on your Windows PC</div>
+          <ol>
+            <li>Run <strong>Step A</strong> to stop the service and find the uninstall ID (the long GUID string)</li>
+            <li>Then go to <strong>Settings &rarr; Apps &rarr; search "Splunk" &rarr; Uninstall</strong> (easiest), OR use the GUID with the <code>msiexec</code> command in Step B</li>
+            <li>After uninstall, run <strong>Step C</strong> to delete leftover files and firewall rules</li>
+          </ol>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <div class="code-header-left">
+              <span class="code-lang">powershell &mdash; Step A: Stop service &amp; find uninstall GUID</span>
+              <span class="machine-badge mb-winhost">Windows Host</span>
+            </div>
+            <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Stop Splunk if it is running (safe to run even if Splunk is not installed)</span>
+<span class="c-green">Stop-Service</span> SplunkD <span class="c-cyan">-Force -ErrorAction SilentlyContinue</span>
+
+<span class="c-dim"># Find the Splunk uninstall GUID &mdash; note the IdentifyingNumber value</span>
+<span class="c-green">Get-WmiObject -Class Win32_Product</span> | <span class="c-green">Where-Object</span> { <span class="c-orange">$_</span>.Name <span class="c-cyan">-like</span> <span class="c-yellow">"*Splunk*"</span> } | <span class="c-green">Select-Object</span> Name, IdentifyingNumber
+<span class="c-dim"># If this returns nothing: Splunk was not registered via MSI &mdash; skip Step B</span></pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <div class="code-header-left">
+              <span class="code-lang">powershell &mdash; Step B: Uninstall using the GUID from Step A</span>
+              <span class="machine-badge mb-winhost">Windows Host</span>
+            </div>
+            <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Replace {PASTE-YOUR-GUID-HERE} with the IdentifyingNumber from Step A</span>
+<span class="c-dim"># Example: msiexec.exe /x "{4A67D191-0000-0000-0000-000000000000}" /quiet</span>
+<span class="c-green">msiexec.exe /x</span> <span class="c-yellow">"{PASTE-YOUR-GUID-HERE}"</span> /quiet
+<span class="c-dim"># Wait ~30 seconds for the uninstall to complete before running Step C</span></pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <div class="code-header-left">
+              <span class="code-lang">powershell &mdash; Step C: Delete leftover files and firewall rules</span>
+              <span class="machine-badge mb-winhost">Windows Host</span>
+            </div>
+            <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Delete Splunk install folder (safe even if it does not exist)</span>
+<span class="c-green">Remove-Item</span> <span class="c-yellow">"C:\Program Files\Splunk"</span> <span class="c-cyan">-Recurse -Force -ErrorAction SilentlyContinue</span>
+<span class="c-green">Remove-Item</span> <span class="c-yellow">"C:\Program Files\SplunkUniversalForwarder"</span> <span class="c-cyan">-Recurse -Force -ErrorAction SilentlyContinue</span>
+
+<span class="c-dim"># Remove firewall rules if they were added previously</span>
+<span class="c-green">Remove-NetFirewallRule</span> <span class="c-cyan">-DisplayName</span> <span class="c-yellow">"Splunk Forwarder Port"</span> <span class="c-cyan">-ErrorAction SilentlyContinue</span>
+<span class="c-green">Remove-NetFirewallRule</span> <span class="c-cyan">-DisplayName</span> <span class="c-yellow">"Splunk Web UI"</span> <span class="c-cyan">-ErrorAction SilentlyContinue</span>
+
+<span class="c-dim"># Verify Splunk is fully gone &mdash; expect no output and "False"</span>
+<span class="c-green">Get-Service</span> SplunkD <span class="c-cyan">-ErrorAction SilentlyContinue</span>
+<span class="c-green">Test-Path</span> <span class="c-yellow">"C:\Program Files\Splunk"</span>
+<span class="c-dim"># Good result: nothing from Get-Service, and False from Test-Path</span></pre>
+        </div>
+      </div>
+    </article>
+
+    <article class="step open">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-num">0.2</span>
+        <h3>&#x1F427; Ubuntu VM &mdash; Remove Splunk Universal Forwarder</h3>
+        <span class="step-toggle">&#x25BA;</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          Each command below is independently safe to run. If you see <strong>"command not found"</strong>,
+          <strong>"No such file"</strong>, or <strong>"package not installed"</strong> on any line &mdash;
+          that part was already clean. Just run the next command.
+        </p>
+
+        <div class="info-box danger" style="margin-top:0;margin-bottom:14px;">
+          <span class="info-icon">&#x1F4F8;</span>
+          <div>
+            <strong>Regarding the error in your screenshot:</strong><br>
+            You ran <code>sudo /opt/splunkforwarder/bin/splunk stop</code> and got <code>command not found</code>.<br><br>
+            This means the Splunk binary does not exist at that path &mdash; the forwarder was either never fully installed, or a previous attempt left nothing behind. <strong>This is not a problem.</strong> Simply run the three steps below. Step 1 uses a safe check before calling any Splunk command, so it will not throw that error again.
+          </div>
+        </div>
+
+        <div class="instr-block">
+          <div class="instr-block-title">&#x1F4CB; Instructions &mdash; run inside the Ubuntu VM Terminal</div>
+          <ol>
+            <li>Open the Ubuntu VM &rarr; open a <strong>Terminal</strong></li>
+            <li>Run Steps 1, 2, 3, and 4 below <strong>one at a time</strong></li>
+            <li>Any "not found" or "already clean" message is expected and fine &mdash; keep going</li>
+          </ol>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <div class="code-header-left">
+              <span class="code-lang">bash &mdash; Step 1: Safely stop the forwarder if it exists</span>
+              <span class="machine-badge mb-ubuntu">Ubuntu VM</span>
+            </div>
+            <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Checks if the binary exists BEFORE trying to stop it &mdash; no "command not found" error</span>
+<span class="c-green">[ -f</span> /opt/splunkforwarder/bin/splunk <span class="c-green">]</span> &amp;&amp;   <span class="c-green">sudo /opt/splunkforwarder/bin/splunk stop</span> ||   <span class="c-green">echo</span> <span class="c-yellow">"Splunk binary not found &mdash; skipping stop (this is fine)"</span>
+
+<span class="c-green">[ -f</span> /opt/splunkforwarder/bin/splunk <span class="c-green">]</span> &amp;&amp;   <span class="c-green">sudo /opt/splunkforwarder/bin/splunk disable boot-start</span> ||   <span class="c-green">echo</span> <span class="c-yellow">"Nothing to disable &mdash; skipping"</span></pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <div class="code-header-left">
+              <span class="code-lang">bash &mdash; Step 2: Delete the install folder</span>
+              <span class="machine-badge mb-ubuntu">Ubuntu VM</span>
+            </div>
+            <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Force-delete the folder &mdash; safe even if it does not exist</span>
+<span class="c-green">sudo rm -rf</span> /opt/splunkforwarder
+<span class="c-green">echo</span> <span class="c-yellow">"Folder deleted (or was already gone)"</span></pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <div class="code-header-left">
+              <span class="code-lang">bash &mdash; Step 3: Remove the package record and systemd service</span>
+              <span class="machine-badge mb-ubuntu">Ubuntu VM</span>
+            </div>
+            <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Purge the dpkg record (safe even if never registered)</span>
+<span class="c-green">sudo dpkg --purge</span> splunkforwarder 2>/dev/null || <span class="c-green">echo</span> <span class="c-yellow">"Not in dpkg &mdash; already clean"</span>
+
+<span class="c-dim"># Remove systemd service if it was registered</span>
+<span class="c-green">sudo systemctl stop</span> SplunkForwarder 2>/dev/null || true
+<span class="c-green">sudo systemctl disable</span> SplunkForwarder 2>/dev/null || true
+<span class="c-green">sudo rm -f</span> /etc/systemd/system/SplunkForwarder.service
+<span class="c-green">sudo systemctl daemon-reload</span></pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <div class="code-header-left">
+              <span class="code-lang">bash &mdash; Step 4: Verify it is gone</span>
+              <span class="machine-badge mb-ubuntu">Ubuntu VM</span>
+            </div>
+            <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Check folder is gone</span>
+<span class="c-green">ls</span> /opt/splunkforwarder 2>/dev/null || <span class="c-green">echo</span> <span class="c-yellow">"Clean &mdash; /opt/splunkforwarder does not exist"</span>
+
+<span class="c-dim"># Check dpkg has no Splunk record</span>
+<span class="c-green">dpkg -l</span> | <span class="c-green">grep -i</span> splunk || <span class="c-green">echo</span> <span class="c-yellow">"Clean &mdash; no Splunk packages in dpkg"</span>
+<span class="c-dim"># Good: both lines should echo the clean message</span></pre>
+        </div>
+      </div>
+    </article>
+
+    <article class="step open">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-num">0.3</span>
+        <h3>&#x1F5A5;&#xFE0F; Windows Server VM &mdash; Remove Forwarder and Sysmon</h3>
+        <span class="step-toggle">&#x25BA;</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          Remove the Splunk Universal Forwarder and Sysmon from the Windows Server VM.
+          Run everything <strong>inside that VM</strong> in PowerShell as Administrator &mdash; not on your Windows host.
+        </p>
+
+        <div class="instr-block">
+          <div class="instr-block-title">&#x1F4CB; Instructions</div>
+          <ol>
+            <li>Open the <strong>Windows Server VM</strong> in VMware &rarr; open <strong>PowerShell as Administrator</strong> inside it</li>
+            <li>Run Steps A, B, C, D in order</li>
+            <li>If Step A finds no GUID (returns nothing), skip Step B and go straight to Step C</li>
+          </ol>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <div class="code-header-left">
+              <span class="code-lang">powershell &mdash; Step A: Stop service and find uninstall GUID</span>
+              <span class="machine-badge mb-winserver">Windows Server VM</span>
+            </div>
+            <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Stop the forwarder service (safe if not installed)</span>
+<span class="c-green">Stop-Service</span> SplunkForwarder <span class="c-cyan">-Force -ErrorAction SilentlyContinue</span>
+
+<span class="c-dim"># Find the uninstall GUID &mdash; if this returns nothing, skip Step B</span>
+<span class="c-green">Get-WmiObject -Class Win32_Product</span> | <span class="c-green">Where-Object</span> { <span class="c-orange">$_</span>.Name <span class="c-cyan">-like</span> <span class="c-yellow">"*SplunkUniversal*"</span> } | <span class="c-green">Select-Object</span> Name, IdentifyingNumber</pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <div class="code-header-left">
+              <span class="code-lang">powershell &mdash; Step B: Uninstall the forwarder MSI</span>
+              <span class="machine-badge mb-winserver">Windows Server VM</span>
+            </div>
+            <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Replace {PASTE-YOUR-GUID-HERE} with the IdentifyingNumber from Step A</span>
+<span class="c-green">msiexec.exe /x</span> <span class="c-yellow">"{PASTE-YOUR-GUID-HERE}"</span> /quiet
+<span class="c-dim"># Wait ~30 seconds before continuing</span></pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <div class="code-header-left">
+              <span class="code-lang">powershell &mdash; Step C: Delete folders and remove Sysmon</span>
+              <span class="machine-badge mb-winserver">Windows Server VM</span>
+            </div>
+            <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+          </div>
+          <pre><span class="c-dim"># Delete leftover forwarder folder</span>
+<span class="c-green">Remove-Item</span> <span class="c-yellow">"C:\Program Files\SplunkUniversalForwarder"</span> <span class="c-cyan">-Recurse -Force -ErrorAction SilentlyContinue</span>
+
+<span class="c-dim"># Remove Sysmon if it was installed</span>
+<span class="c-green">if</span> (<span class="c-green">Test-Path</span> <span class="c-yellow">"C:\Tools\Sysmon\Sysmon64.exe"</span>) {
+    <span class="c-green">C:\Tools\Sysmon\Sysmon64.exe</span> <span class="c-cyan">-u force</span>
+    <span class="c-green">Write-Host</span> <span class="c-yellow">"Sysmon removed"</span> <span class="c-cyan">-ForegroundColor Green</span>
+} <span class="c-green">else</span> {
+    <span class="c-green">Write-Host</span> <span class="c-yellow">"Sysmon not found &mdash; skipping (this is fine)"</span> <span class="c-cyan">-ForegroundColor Yellow</span>
+}
+
+<span class="c-dim"># Delete the tools folder</span>
+<span class="c-green">Remove-Item</span> <span class="c-yellow">"C:\Tools"</span> <span class="c-cyan">-Recurse -Force -ErrorAction SilentlyContinue</span></pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header">
+            <div class="code-header-left">
+              <span class="code-lang">powershell &mdash; Step D: Verify everything is gone</span>
+              <span class="machine-badge mb-winserver">Windows Server VM</span>
+            </div>
+            <button class="copy-btn" onclick="copyCode(this)">COPY</button>
+          </div>
+          <pre><span class="c-dim"># All three should return nothing or False</span>
+<span class="c-green">Get-Service</span> SplunkForwarder <span class="c-cyan">-ErrorAction SilentlyContinue</span>
+<span class="c-green">Get-Service</span> Sysmon64 <span class="c-cyan">-ErrorAction SilentlyContinue</span>
+<span class="c-green">Test-Path</span> <span class="c-yellow">"C:\Program Files\SplunkUniversalForwarder"</span>
+<span class="c-dim"># Good: no service output, and False from Test-Path</span></pre>
+        </div>
+      </div>
+    </article>
+
+    <article class="step">
+      <div class="step-header" onclick="toggleStep(this)">
+        <span class="step-num">0.4</span>
+        <h3>&#x2705; All Clear &mdash; Expected Results on Each Machine</h3>
+        <span class="step-toggle">&#x25BA;</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">Once all three machines show these results, you are ready to go to Phase 01 and install fresh.</p>
+
+        <div class="two-col">
+          <div class="mini-card">
+            <div class="mini-card-title">&#x1FA9F; Windows Host</div>
+            <ul style="padding-left:16px;margin-top:8px;font-size:.87rem;color:var(--text-secondary);">
+              <li style="margin-bottom:5px;"><code style="color:var(--accent-cyan);font-family:var(--font-mono);font-size:.78rem;">Get-Service SplunkD</code> &rarr; <strong style="color:var(--accent-green);">no output</strong></li>
+              <li style="margin-bottom:5px;"><code style="color:var(--accent-cyan);font-family:var(--font-mono);font-size:.78rem;">Test-Path "C:\Program Files\Splunk"</code> &rarr; <strong style="color:var(--accent-green);">False</strong></li>
+              <li><code style="color:var(--accent-cyan);font-family:var(--font-mono);font-size:.78rem;">netstat -ano | findstr ":9997"</code> &rarr; <strong style="color:var(--accent-green);">no output</strong></li>
+            </ul>
+          </div>
+          <div class="mini-card">
+            <div class="mini-card-title">&#x1F427; Ubuntu VM</div>
+            <ul style="padding-left:16px;margin-top:8px;font-size:.87rem;color:var(--text-secondary);">
+              <li style="margin-bottom:5px;"><code style="color:var(--accent-cyan);font-family:var(--font-mono);font-size:.78rem;">ls /opt/splunkforwarder</code> &rarr; <strong style="color:var(--accent-green);">No such file or directory</strong></li>
+              <li><code style="color:var(--accent-cyan);font-family:var(--font-mono);font-size:.78rem;">dpkg -l | grep splunk</code> &rarr; <strong style="color:var(--accent-green);">no output</strong></li>
+            </ul>
+          </div>
+        </div>
+        <div class="mini-card" style="margin-top:14px;">
+          <div class="mini-card-title">&#x1F5A5;&#xFE0F; Windows Server VM</div>
+          <ul style="padding-left:16px;margin-top:8px;font-size:.87rem;color:var(--text-secondary);display:flex;gap:20px;flex-wrap:wrap;">
+            <li><code style="color:var(--accent-cyan);font-family:var(--font-mono);font-size:.78rem;">Get-Service SplunkForwarder</code> &rarr; <strong style="color:var(--accent-green);">no output</strong></li>
+            <li><code style="color:var(--accent-cyan);font-family:var(--font-mono);font-size:.78rem;">Get-Service Sysmon64</code> &rarr; <strong style="color:var(--accent-green);">no output</strong></li>
+            <li><code style="color:var(--accent-cyan);font-family:var(--font-mono);font-size:.78rem;">Test-Path "C:\Program Files\SplunkUniversalForwarder"</code> &rarr; <strong style="color:var(--accent-green);">False</strong></li>
+          </ul>
+        </div>
+
+        <div class="info-box tip" style="margin-top:16px;">
+          <span class="info-icon">&#x2713;</span>
+          <div><strong>All three clean?</strong> You are good to go. Scroll up and continue from <strong>Phase 01</strong> to install everything fresh. The full install takes about 30&ndash;45 minutes end to end.</div>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</section>
 
 <!-- ===== PHASE 1 ===== -->
 <section class="phase" id="phase1">
