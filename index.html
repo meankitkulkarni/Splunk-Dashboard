@@ -424,6 +424,7 @@
     border: 1px solid var(--border-color);
     border-radius: 8px; overflow: hidden;
     margin: 14px 0;
+    position: relative;
   }
 
   .code-header {
@@ -662,6 +663,7 @@
       <li><a href="#phase4" aria-label="Phase 4: Dashboard">P4</a></li>
       <li><a href="#phase5" aria-label="Phase 5: Attack Simulation">P5</a></li>
       <li><a href="#phase6" aria-label="Phase 6: Alerting">P6</a></li>
+      <li><a href="#phase7" aria-label="Phase 7: IP Change Fix">P7</a></li>
     </ul>
   </div>
 </nav>
@@ -1784,6 +1786,620 @@
   </div>
 </section>
 
+<!-- ===== PHASE 7 ===== -->
+<section class="phase" id="phase7" aria-labelledby="phase7-title">
+  <div class="phase-header">
+    <div class="phase-number" aria-hidden="true">07</div>
+    <div class="phase-title-group">
+      <h2 id="phase7-title">Network Change Recovery — Home ↔ College WiFi</h2>
+      <div class="phase-tag">IP Reconfiguration · Portability · One-Command Fix</div>
+    </div>
+    <span class="phase-status important" aria-label="Important step">Must Do on Network Change</span>
+  </div>
+
+  <!-- Why this happens -->
+  <div style="background:var(--bg-panel);border:1px solid var(--border-color);border-radius:10px;padding:20px 24px;margin-bottom:24px;position:relative;overflow:hidden;">
+    <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent-purple),var(--accent-cyan));"></div>
+    <div style="font-family:var(--font-mono);font-size:10px;color:var(--accent-purple);letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;">Why This Breaks</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+      <div style="font-size:0.875rem;color:var(--text-secondary);line-height:1.7;">
+        When you built this at home, your VMware VMs were assigned IPs by your <strong style="color:var(--text-primary);">home router's DHCP</strong> — something like <code style="color:var(--accent-cyan);">192.168.1.x</code>. You hardcoded those IPs into every forwarder config.
+      </div>
+      <div style="font-size:0.875rem;color:var(--text-secondary);line-height:1.7;">
+        At college, a <strong style="color:var(--text-primary);">different DHCP server</strong> hands out new IPs — likely <code style="color:var(--accent-cyan);">10.x.x.x</code> or <code style="color:var(--accent-cyan);">172.16.x.x</code>. The old IP in every config file is now wrong. Forwarders silently fail.
+      </div>
+      <div style="font-size:0.875rem;color:var(--text-secondary);line-height:1.7;">
+        The fix is simple: <strong style="color:var(--text-primary);">find the new Splunk server IP</strong> and update that one address in two config files — one on Ubuntu, one on Windows. Take 3 minutes max.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ REAL-TIME IP COMMAND GENERATOR ═══════ -->
+  <div id="ip-gen-wrap" style="background:var(--bg-panel);border:1px solid rgba(0,255,136,0.25);border-radius:12px;overflow:hidden;margin-bottom:28px;">
+
+    <!-- header -->
+    <div style="background:rgba(0,255,136,0.06);border-bottom:1px solid rgba(0,255,136,0.15);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--accent-green);letter-spacing:2px;text-transform:uppercase;">Live IP Command Generator</div>
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-top:3px;">Each machine has its own IP fields — commands update on every keystroke</div>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:10px;padding:4px 10px;border-radius:4px;border:1px solid rgba(0,212,255,0.25);color:var(--accent-cyan);">3 MACHINES · INDEPENDENT</div>
+    </div>
+
+    <!-- tab bar -->
+    <div style="display:flex;border-bottom:1px solid var(--border-color);">
+      <button id="tab-kali"   onclick="switchTab('kali')"   style="flex:1;padding:11px 0;font-family:var(--font-mono);font-size:11px;letter-spacing:1px;background:rgba(0,255,136,0.08);color:var(--accent-green);border:none;border-right:1px solid var(--border-color);cursor:pointer;transition:all 0.15s;">🐉 KALI<br><span style="font-size:9px;opacity:0.7;">Splunk Server</span></button>
+      <button id="tab-ubuntu" onclick="switchTab('ubuntu')" style="flex:1;padding:11px 0;font-family:var(--font-mono);font-size:11px;letter-spacing:1px;background:transparent;color:var(--text-secondary);border:none;border-right:1px solid var(--border-color);cursor:pointer;transition:all 0.15s;">🐧 UBUNTU<br><span style="font-size:9px;opacity:0.7;">Linux Endpoint</span></button>
+      <button id="tab-win"    onclick="switchTab('win')"    style="flex:1;padding:11px 0;font-family:var(--font-mono);font-size:11px;letter-spacing:1px;background:transparent;color:var(--text-secondary);border:none;cursor:pointer;transition:all 0.15s;">🪟 WINDOWS<br><span style="font-size:9px;opacity:0.7;">Windows Endpoint</span></button>
+    </div>
+
+    <!-- ── KALI PANEL ── -->
+    <div id="panel-kali">
+      <div style="padding:16px 20px 0;background:rgba(0,255,136,0.02);border-bottom:1px solid var(--border-color);">
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-bottom:12px;">
+          Kali is your <strong style="color:var(--accent-green);">Splunk server</strong>. Its IP is what both endpoints point to.
+          When it changes, forwarders lose connection — update them using the Ubuntu and Windows tabs.
+          These commands confirm Splunk is healthy on the new network.
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-bottom:14px;">
+          <div>
+            <label style="font-family:var(--font-mono);font-size:9px;letter-spacing:2px;color:var(--text-dim);display:block;margin-bottom:5px;" for="kali-old">KALI OLD IP <span style="color:var(--accent-orange);">(home)</span></label>
+            <div style="position:relative;">
+              <input id="kali-old" type="text" placeholder="192.168.1.105" maxlength="15" autocomplete="off" spellcheck="false"
+                oninput="renderKali()"
+                style="width:100%;padding:8px 32px 8px 11px;background:var(--bg-code);border:1px solid var(--border-color);border-radius:6px;color:var(--accent-orange);font-family:var(--font-mono);font-size:13px;transition:border-color 0.2s;">
+              <span id="kali-old-ok" style="position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--accent-orange);font-size:11px;opacity:0;transition:opacity 0.2s;">✓</span>
+            </div>
+          </div>
+          <div>
+            <label style="font-family:var(--font-mono);font-size:9px;letter-spacing:2px;color:var(--text-dim);display:block;margin-bottom:5px;" for="kali-new">KALI NEW IP <span style="color:var(--accent-green);">(college)</span></label>
+            <div style="position:relative;">
+              <input id="kali-new" type="text" placeholder="10.10.50.22" maxlength="15" autocomplete="off" spellcheck="false"
+                oninput="renderKali()"
+                style="width:100%;padding:8px 32px 8px 11px;background:var(--bg-code);border:1px solid var(--border-color);border-radius:6px;color:var(--accent-green);font-family:var(--font-mono);font-size:13px;transition:border-color 0.2s;">
+              <span id="kali-new-ok" style="position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--accent-green);font-size:11px;opacity:0;transition:opacity 0.2s;">✓</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:14px 20px;">
+        <div class="code-block" style="margin:0;">
+          <div class="code-header">
+            <span class="code-lang">bash — run on Kali (Splunk server)</span>
+            <button class="copy-btn" onclick="copyPlain('kali-plain')" aria-label="Copy Kali commands">COPY</button>
+          </div>
+          <pre id="kali-code" style="min-height:100px;"></pre>
+          <textarea id="kali-plain" style="position:absolute;opacity:0;pointer-events:none;height:0;" aria-hidden="true"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── UBUNTU PANEL ── -->
+    <div id="panel-ubuntu" style="display:none;">
+      <div style="padding:16px 20px 0;background:rgba(0,212,255,0.02);border-bottom:1px solid var(--border-color);">
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-bottom:12px;">
+          Ubuntu is a <strong style="color:var(--accent-cyan);">Splunk Universal Forwarder endpoint</strong>.
+          Its <code>outputs.conf</code> stores the Splunk server (Kali) IP. When Kali's IP changes,
+          enter the old and new Kali IPs here — Ubuntu's own IP is irrelevant for this fix.
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-bottom:14px;">
+          <div>
+            <label style="font-family:var(--font-mono);font-size:9px;letter-spacing:2px;color:var(--text-dim);display:block;margin-bottom:5px;" for="ub-old">KALI OLD IP <span style="color:var(--accent-orange);">(what Ubuntu was pointing to)</span></label>
+            <div style="position:relative;">
+              <input id="ub-old" type="text" placeholder="192.168.1.105" maxlength="15" autocomplete="off" spellcheck="false"
+                oninput="renderUbuntu()"
+                style="width:100%;padding:8px 32px 8px 11px;background:var(--bg-code);border:1px solid var(--border-color);border-radius:6px;color:var(--accent-orange);font-family:var(--font-mono);font-size:13px;transition:border-color 0.2s;">
+              <span id="ub-old-ok" style="position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--accent-orange);font-size:11px;opacity:0;transition:opacity 0.2s;">✓</span>
+            </div>
+          </div>
+          <div>
+            <label style="font-family:var(--font-mono);font-size:9px;letter-spacing:2px;color:var(--text-dim);display:block;margin-bottom:5px;" for="ub-new">KALI NEW IP <span style="color:var(--accent-green);">(where Ubuntu should now send data)</span></label>
+            <div style="position:relative;">
+              <input id="ub-new" type="text" placeholder="10.10.50.22" maxlength="15" autocomplete="off" spellcheck="false"
+                oninput="renderUbuntu()"
+                style="width:100%;padding:8px 32px 8px 11px;background:var(--bg-code);border:1px solid var(--border-color);border-radius:6px;color:var(--accent-green);font-family:var(--font-mono);font-size:13px;transition:border-color 0.2s;">
+              <span id="ub-new-ok" style="position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--accent-green);font-size:11px;opacity:0;transition:opacity 0.2s;">✓</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:14px 20px;">
+        <div class="code-block" style="margin:0;">
+          <div class="code-header">
+            <span class="code-lang">bash — run on Ubuntu VM (as root / sudo)</span>
+            <button class="copy-btn" onclick="copyPlain('ubuntu-plain')" aria-label="Copy Ubuntu commands">COPY</button>
+          </div>
+          <pre id="ubuntu-code" style="min-height:100px;"></pre>
+          <textarea id="ubuntu-plain" style="position:absolute;opacity:0;pointer-events:none;height:0;" aria-hidden="true"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── WINDOWS PANEL ── -->
+    <div id="panel-win" style="display:none;">
+      <div style="padding:16px 20px 0;background:rgba(168,85,247,0.02);border-bottom:1px solid var(--border-color);">
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-bottom:12px;">
+          Windows Server is a <strong style="color:var(--accent-purple);">Splunk Universal Forwarder endpoint</strong>.
+          Same logic as Ubuntu — its <code>outputs.conf</code> needs Kali's new IP.
+          Run PowerShell as <strong style="color:var(--accent-yellow);">Administrator</strong>.
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-bottom:14px;">
+          <div>
+            <label style="font-family:var(--font-mono);font-size:9px;letter-spacing:2px;color:var(--text-dim);display:block;margin-bottom:5px;" for="win-old">KALI OLD IP <span style="color:var(--accent-orange);">(what Windows was pointing to)</span></label>
+            <div style="position:relative;">
+              <input id="win-old" type="text" placeholder="192.168.1.105" maxlength="15" autocomplete="off" spellcheck="false"
+                oninput="renderWindows()"
+                style="width:100%;padding:8px 32px 8px 11px;background:var(--bg-code);border:1px solid var(--border-color);border-radius:6px;color:var(--accent-orange);font-family:var(--font-mono);font-size:13px;transition:border-color 0.2s;">
+              <span id="win-old-ok" style="position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--accent-orange);font-size:11px;opacity:0;transition:opacity 0.2s;">✓</span>
+            </div>
+          </div>
+          <div>
+            <label style="font-family:var(--font-mono);font-size:9px;letter-spacing:2px;color:var(--text-dim);display:block;margin-bottom:5px;" for="win-new">KALI NEW IP <span style="color:var(--accent-green);">(where Windows should now send data)</span></label>
+            <div style="position:relative;">
+              <input id="win-new" type="text" placeholder="10.10.50.22" maxlength="15" autocomplete="off" spellcheck="false"
+                oninput="renderWindows()"
+                style="width:100%;padding:8px 32px 8px 11px;background:var(--bg-code);border:1px solid var(--border-color);border-radius:6px;color:var(--accent-purple);font-family:var(--font-mono);font-size:13px;transition:border-color 0.2s;">
+              <span id="win-new-ok" style="position:absolute;right:9px;top:50%;transform:translateY(-50%);color:var(--accent-green);font-size:11px;opacity:0;transition:opacity 0.2s;">✓</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:14px 20px;">
+        <div class="code-block" style="margin:0;">
+          <div class="code-header">
+            <span class="code-lang">powershell — run on Windows Server (as Administrator)</span>
+            <button class="copy-btn" onclick="copyPlain('win-plain')" aria-label="Copy Windows commands">COPY</button>
+          </div>
+          <pre id="win-code" style="min-height:100px;"></pre>
+          <textarea id="win-plain" style="position:absolute;opacity:0;pointer-events:none;height:0;" aria-hidden="true"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- verify strip -->
+    <div style="padding:12px 20px;border-top:1px solid var(--border-color);background:rgba(0,0,0,0.25);">
+      <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">After fixing all 3 machines — paste this SPL in Splunk to confirm both endpoints are live</div>
+      <div class="code-block" style="margin:0;">
+        <div class="code-header">
+          <span class="code-lang">spl — verify in Splunk UI (http://KALI_NEW_IP:8000)</span>
+          <button class="copy-btn" onclick="copyPlain('verify-plain')" aria-label="Copy verify SPL">COPY</button>
+        </div>
+        <pre id="verify-code" style="min-height:28px;"></pre>
+        <textarea id="verify-plain" style="position:absolute;opacity:0;pointer-events:none;height:0;" aria-hidden="true"></textarea>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="steps">
+
+    <!-- Step 1: Find new IPs -->
+    <article class="step open" aria-label="Step 7.1: Find new IPs after network change">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="true">
+        <span class="step-num">7.1</span>
+        <h3>Step 1 — Find All New IP Addresses After Connecting to New WiFi</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          Boot all your VMs and run these commands on each one to discover their new IPs assigned by the college network. 
+          Write these down — you'll need them in every step below.
+        </p>
+        <div class="two-col">
+          <div>
+            <div class="code-block">
+              <div class="code-header"><span class="code-lang">bash — on Splunk host &amp; Ubuntu VM</span><button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button></div>
+              <pre><span class="c-dim"># Find this machine's IP address</span>
+<span class="c-green">ip addr show</span> | <span class="c-green">grep</span> <span class="c-yellow">"inet "</span> | <span class="c-green">grep -v</span> 127.0.0.1
+
+<span class="c-dim"># Or shorter:</span>
+<span class="c-green">hostname -I</span>
+
+<span class="c-dim"># Note the output, e.g.:</span>
+<span class="c-dim"># → 10.0.0.47  ← this is your new Splunk IP</span></pre>
+            </div>
+          </div>
+          <div>
+            <div class="code-block">
+              <div class="code-header"><span class="code-lang">powershell — on Windows Server</span><button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button></div>
+              <pre><span class="c-dim"># Find Windows VM's new IP</span>
+<span class="c-green">ipconfig</span> | <span class="c-green">findstr</span> <span class="c-yellow">"IPv4"</span>
+
+<span class="c-dim"># Or via PowerShell:</span>
+<span class="c-green">Get-NetIPAddress</span> <span class="c-cyan">-AddressFamily IPv4</span> | <span class="c-green">Where-Object</span> {<span class="c-cyan">$_</span>.IPAddress <span class="c-cyan">-notlike</span> <span class="c-yellow">"127.*"</span>} | <span class="c-green">Select-Object</span> IPAddress</pre>
+            </div>
+          </div>
+        </div>
+        <div class="info-box note">
+          <span class="info-icon">ℹ</span>
+          <div>In VMware, your VMs share the host's physical network interface. If your laptop gets a new IP on college WiFi, every VM running in <strong>NAT mode</strong> gets a new IP too. In <strong>Host-Only mode</strong>, VMs keep the same internal IPs — see Step 7.5 for how to use this to avoid this problem entirely.</div>
+        </div>
+      </div>
+    </article>
+
+    <!-- Step 2: Fix Ubuntu forwarder -->
+    <article class="step" aria-label="Step 7.2: Update Ubuntu forwarder config">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="false">
+        <span class="step-num">7.2</span>
+        <h3>Step 2 — Update Ubuntu Forwarder to Point at New Splunk IP</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          The Ubuntu forwarder stores the Splunk indexer's IP in <code>outputs.conf</code>. 
+          You need to remove the old entry and add the new one. Run all commands on the <strong>Ubuntu VM</strong>.
+        </p>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">bash — method A: CLI commands (quickest)</span><button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button></div>
+          <pre><span class="c-dim"># 1. Remove the OLD Splunk server IP</span>
+<span class="c-green">sudo /opt/splunkforwarder/bin/splunk remove forward-server</span> \
+  <span class="c-yellow">OLD_SPLUNK_IP:9997</span> \
+  <span class="c-cyan">-auth admin:YourSecurePass123!</span>
+
+<span class="c-dim"># 2. Add the NEW Splunk server IP</span>
+<span class="c-green">sudo /opt/splunkforwarder/bin/splunk add forward-server</span> \
+  <span class="c-yellow">NEW_SPLUNK_IP:9997</span> \
+  <span class="c-cyan">-auth admin:YourSecurePass123!</span>
+
+<span class="c-dim"># 3. Restart the forwarder to apply</span>
+<span class="c-green">sudo /opt/splunkforwarder/bin/splunk restart</span>
+
+<span class="c-dim"># 4. Verify the new connection is active</span>
+<span class="c-green">sudo /opt/splunkforwarder/bin/splunk list forward-server</span> \
+  <span class="c-cyan">-auth admin:YourSecurePass123!</span>
+<span class="c-dim"># You should see: Active forwards: NEW_SPLUNK_IP:9997</span></pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">bash — method B: edit outputs.conf directly</span><button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button></div>
+          <pre><span class="c-dim"># View the current outputs.conf to see old IP</span>
+<span class="c-green">cat</span> /opt/splunkforwarder/etc/system/local/outputs.conf
+
+<span class="c-dim"># The file looks like:</span>
+<span class="c-cyan">[tcpout]</span>
+<span class="c-green">defaultGroup</span> = default-autolb-group
+
+<span class="c-cyan">[tcpout:default-autolb-group]</span>
+<span class="c-green">server</span> = <span class="c-yellow">OLD_SPLUNK_IP:9997</span>   <span class="c-dim"># ← change this line</span>
+
+<span class="c-dim"># Use sed to replace old IP with new IP in one command:</span>
+<span class="c-green">sudo sed -i</span> <span class="c-yellow">'s/OLD_SPLUNK_IP/NEW_SPLUNK_IP/g'</span> \
+  /opt/splunkforwarder/etc/system/local/outputs.conf
+
+<span class="c-dim"># Confirm the change:</span>
+<span class="c-green">grep server</span> /opt/splunkforwarder/etc/system/local/outputs.conf
+
+<span class="c-dim"># Restart forwarder:</span>
+<span class="c-green">sudo /opt/splunkforwarder/bin/splunk restart</span></pre>
+        </div>
+
+        <div class="info-box tip">
+          <span class="info-icon">✓</span>
+          <div>Method A (CLI) is recommended because Splunk manages the config file cleanly. Method B (direct edit) is faster if you know the exact old IP and want a one-liner. Both work identically.</div>
+        </div>
+      </div>
+    </article>
+
+    <!-- Step 3: Fix Windows forwarder -->
+    <article class="step" aria-label="Step 7.3: Update Windows forwarder config">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="false">
+        <span class="step-num">7.3</span>
+        <h3>Step 3 — Update Windows Forwarder to Point at New Splunk IP</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          Run these commands on the <strong>Windows Server VM</strong>. Open PowerShell as Administrator.
+        </p>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">powershell — method A: CLI commands</span><button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button></div>
+          <pre><span class="c-dim"># 1. Remove the old Splunk server IP</span>
+<span class="c-green">&amp; "C:\Program Files\SplunkUniversalForwarder\bin\splunk.exe"</span> remove forward-server <span class="c-yellow">OLD_SPLUNK_IP:9997</span> <span class="c-cyan">-auth admin:YourSecurePass123!</span>
+
+<span class="c-dim"># 2. Add the new Splunk server IP</span>
+<span class="c-green">&amp; "C:\Program Files\SplunkUniversalForwarder\bin\splunk.exe"</span> add forward-server <span class="c-yellow">NEW_SPLUNK_IP:9997</span> <span class="c-cyan">-auth admin:YourSecurePass123!</span>
+
+<span class="c-dim"># 3. Restart the Windows forwarder service</span>
+<span class="c-green">Restart-Service</span> SplunkForwarder
+
+<span class="c-dim"># 4. Verify service is running</span>
+<span class="c-green">Get-Service</span> SplunkForwarder | <span class="c-green">Select-Object</span> Status, DisplayName
+
+<span class="c-dim"># 5. Confirm forwarding target is updated</span>
+<span class="c-green">&amp; "C:\Program Files\SplunkUniversalForwarder\bin\splunk.exe"</span> list forward-server <span class="c-cyan">-auth admin:YourSecurePass123!</span></pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">powershell — method B: edit outputs.conf directly</span><button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button></div>
+          <pre><span class="c-dim"># Path to the Windows forwarder outputs.conf</span>
+<span class="c-green">$conf</span> = <span class="c-yellow">"C:\Program Files\SplunkUniversalForwarder\etc\system\local\outputs.conf"</span>
+
+<span class="c-dim"># View current content (find old IP)</span>
+<span class="c-green">Get-Content</span> $conf
+
+<span class="c-dim"># Replace old IP with new IP in one line</span>
+(<span class="c-green">Get-Content</span> $conf) <span class="c-cyan">-replace</span> <span class="c-yellow">'OLD_SPLUNK_IP'</span>, <span class="c-yellow">'NEW_SPLUNK_IP'</span> | <span class="c-green">Set-Content</span> $conf
+
+<span class="c-dim"># Confirm the replacement worked</span>
+<span class="c-green">Get-Content</span> $conf
+
+<span class="c-dim"># Restart the forwarder</span>
+<span class="c-green">Restart-Service</span> SplunkForwarder</pre>
+        </div>
+      </div>
+    </article>
+
+    <!-- Step 4: Verify data is flowing -->
+    <article class="step" aria-label="Step 7.4: Verify data is flowing again">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="false">
+        <span class="step-num">7.4</span>
+        <h3>Step 4 — Verify Data is Flowing into Splunk Again</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          After updating both forwarders, open the Splunk Web UI and confirm events are arriving from both endpoints.
+        </p>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">spl — run in Splunk Search &amp; Reporting</span><button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button></div>
+          <pre><span class="c-dim"># Check both indexes have recent events (last 15 minutes)</span>
+<span class="spl-keyword">index</span>=(linux_logs OR windows_logs) earliest=-15m
+<span class="spl-pipe">|</span> <span class="spl-keyword">stats</span> <span class="spl-func">count</span> <span class="spl-keyword">as</span> events, <span class="spl-func">latest</span>(_time) <span class="spl-keyword">as</span> last_seen <span class="spl-keyword">by</span> host, index
+<span class="spl-pipe">|</span> <span class="spl-keyword">eval</span> last_seen=<span class="spl-func">strftime</span>(last_seen,<span class="spl-string">"%H:%M:%S"</span>)
+<span class="spl-pipe">|</span> <span class="spl-keyword">sort</span> <span class="spl-func">-last_seen</span>
+
+<span class="c-dim"># Expected output: both your Ubuntu and Windows hosts appear with recent events</span>
+<span class="c-dim"># If a host shows no events, re-check its forwarder config</span></pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">bash — check forwarder logs for connection errors (Ubuntu)</span><button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button></div>
+          <pre><span class="c-dim"># Check splunkd.log for connection errors</span>
+<span class="c-green">sudo tail -50</span> /opt/splunkforwarder/var/log/splunk/splunkd.log | <span class="c-green">grep -i</span> <span class="c-yellow">"error\|connect\|forward"</span>
+
+<span class="c-dim"># A healthy connection shows:</span>
+<span class="c-dim"># Connected to idx=NEW_SPLUNK_IP:9997, using TLS</span>
+<span class="c-dim"># An error shows:</span>
+<span class="c-dim"># Connection refused to NEW_SPLUNK_IP:9997  ← firewall or wrong IP</span></pre>
+        </div>
+
+        <table aria-label="Troubleshooting common issues after IP change">
+          <thead>
+            <tr>
+              <th>Symptom</th>
+              <th>Likely Cause</th>
+              <th>Fix</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>No events in linux_logs</td>
+              <td>Ubuntu outputs.conf still has old IP</td>
+              <td>Re-run Step 7.2, verify with list forward-server</td>
+            </tr>
+            <tr>
+              <td>No events in windows_logs</td>
+              <td>Windows outputs.conf still has old IP</td>
+              <td>Re-run Step 7.3, restart SplunkForwarder service</td>
+            </tr>
+            <tr>
+              <td>Connection refused error</td>
+              <td>Port 9997 blocked by college network firewall</td>
+              <td>See Step 7.5 — switch to Host-Only networking</td>
+            </tr>
+            <tr>
+              <td>Splunk UI unreachable</td>
+              <td>Splunk server IP changed, browser cached old URL</td>
+              <td>Run hostname -I on Splunk host, update browser URL</td>
+            </tr>
+            <tr>
+              <td>Forwarder service not starting</td>
+              <td>Config file syntax error after manual edit</td>
+              <td>Check /opt/splunkforwarder/var/log/splunk/splunkd.log</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <!-- Step 5: Permanent fix with Host-Only -->
+    <article class="step" aria-label="Step 7.5: Permanent fix using VMware Host-Only networking">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="false">
+        <span class="step-num">7.5</span>
+        <h3>Permanent Fix — Use VMware Host-Only Networking (Recommended)</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          This is the real solution that eliminates the problem completely. By switching all your SOC VMs to 
+          <strong>Host-Only networking</strong>, they communicate over a private virtual network inside VMware 
+          that never changes — regardless of whether you're on home WiFi, college WiFi, or no WiFi at all.
+          You only set this up once.
+        </p>
+
+        <div class="info-box note">
+          <span class="info-icon">ℹ</span>
+          <div><strong>How it works:</strong> VMware creates a virtual network adapter (VMnet1 by default for Host-Only) that lives entirely inside your laptop. VMs on this network get IPs like <code>192.168.56.x</code> permanently — they never change because no external DHCP server is involved. The Splunk UI on port 8000 is still accessible from your laptop's browser.</div>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">vmware workstation — step-by-step</span><button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button></div>
+          <pre><span class="c-dim">═══════════════════════════════════════════════════
+  Configure VMware Host-Only Network (do this once)
+═══════════════════════════════════════════════════</span>
+
+<span class="c-green">STEP A</span> — Open VMware Workstation
+  → Edit → Virtual Network Editor → Run as Administrator
+
+<span class="c-green">STEP B</span> — Select VMnet1 (Host-only)
+  → Check: "Use local DHCP service to distribute IP addresses"
+  → Subnet IP: <span class="c-yellow">192.168.56.0</span>
+  → Subnet Mask: <span class="c-yellow">255.255.255.0</span>
+  → Click Apply
+
+<span class="c-green">STEP C</span> — For EACH VM (Splunk host, Ubuntu VM, Windows Server):
+  → Right-click VM → Settings → Network Adapter
+  → Change from "NAT" to <span class="c-yellow">"Host-only: VMnet1"</span>
+  → Click OK
+
+<span class="c-green">STEP D</span> — Boot all VMs and check their new stable IPs
+  Ubuntu/Splunk: <span class="c-green">ip addr show</span>  → expect 192.168.56.x
+  Windows:       <span class="c-green">ipconfig</span>        → expect 192.168.56.x</pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">bash — assign static IPs (prevents DHCP reassignment)</span><button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button></div>
+          <pre><span class="c-dim"># On Ubuntu: assign a static IP using netplan</span>
+<span class="c-green">sudo nano</span> /etc/netplan/00-installer-config.yaml
+
+<span class="c-dim"># Replace contents with:</span>
+<span class="c-cyan">network:</span>
+  <span class="c-cyan">version:</span> 2
+  <span class="c-cyan">ethernets:</span>
+    <span class="c-cyan">ens33:</span>           <span class="c-dim"># replace ens33 with your interface name</span>
+      <span class="c-cyan">addresses:</span> [<span class="c-yellow">192.168.56.10/24</span>]   <span class="c-dim"># Splunk host gets .10</span>
+      <span class="c-cyan">dhcp4:</span> no
+      <span class="c-dim"># No gateway needed — host-only has no internet access</span>
+
+<span class="c-green">sudo netplan apply</span>
+
+<span class="c-dim">═══════════════════════════
+  Recommended static IP plan:
+  Splunk Server  → 192.168.56.10
+  Ubuntu VM      → 192.168.56.20
+  Windows Server → 192.168.56.30
+═══════════════════════════</span></pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">powershell — set static IP on Windows Server</span><button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button></div>
+          <pre><span class="c-dim"># Find the adapter name first</span>
+<span class="c-green">Get-NetAdapter</span> | <span class="c-green">Select-Object</span> Name, InterfaceDescription
+
+<span class="c-dim"># Set static IP (replace "Ethernet0" with your adapter name)</span>
+<span class="c-green">New-NetIPAddress</span> <span class="c-cyan">-InterfaceAlias</span> <span class="c-yellow">"Ethernet0"</span> <span class="c-cyan">-IPAddress</span> <span class="c-yellow">192.168.56.30</span> <span class="c-cyan">-PrefixLength</span> 24
+
+<span class="c-dim"># Verify</span>
+<span class="c-green">Get-NetIPAddress</span> <span class="c-cyan">-InterfaceAlias</span> <span class="c-yellow">"Ethernet0"</span></pre>
+        </div>
+
+        <div class="info-box tip">
+          <span class="info-icon">✓</span>
+          <div>
+            After this setup, your forwarder configs <strong>never need to change again</strong>. Splunk server is always 
+            <code>192.168.56.10:9997</code>. Plug into home WiFi, college WiFi, or no WiFi — the SOC keeps running. 
+            Access Splunk UI at <code>http://192.168.56.10:8000</code> from your laptop browser every time.
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- Step 6: One-command script -->
+    <article class="step" aria-label="Step 7.6: One-command IP update script">
+      <div class="step-header" onclick="toggleStep(this)" role="button" tabindex="0" aria-expanded="false">
+        <span class="step-num">7.6</span>
+        <h3>Bonus — One-Command IP Update Script for Quick Fixes</h3>
+        <span class="step-toggle" aria-hidden="true">▶</span>
+      </div>
+      <div class="step-body">
+        <p class="step-desc">
+          If you still want to use NAT/bridged networking and just want to fix IPs faster, 
+          save these scripts on each VM. Run them whenever you switch networks.
+        </p>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">bash — save as ~/fix-splunk-ip.sh on Ubuntu VM</span><button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button></div>
+          <pre><span class="c-orange">#!/bin/bash</span>
+<span class="c-dim"># fix-splunk-ip.sh — run this every time you change networks</span>
+
+<span class="c-green">echo</span> <span class="c-yellow">"Enter the NEW Splunk server IP:"</span>
+<span class="c-green">read</span> NEW_IP
+
+<span class="c-dim"># Validate IP format</span>
+<span class="c-cyan">if</span> ! [[ $NEW_IP =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; <span class="c-cyan">then</span>
+  <span class="c-green">echo</span> <span class="c-red">"Invalid IP format. Exiting."</span>; <span class="c-green">exit</span> 1
+<span class="c-cyan">fi</span>
+
+<span class="c-dim"># Get old IP from current config</span>
+OLD_IP=$(<span class="c-green">grep</span> <span class="c-yellow">"^server"</span> /opt/splunkforwarder/etc/system/local/outputs.conf | <span class="c-green">awk -F</span><span class="c-yellow">'[= :]'</span> <span class="c-yellow">'{print $2}'</span> | <span class="c-green">tr -d</span> <span class="c-yellow">' '</span>)
+<span class="c-green">echo</span> <span class="c-yellow">"Replacing old IP: $OLD_IP → $NEW_IP"</span>
+
+<span class="c-dim"># Update outputs.conf</span>
+<span class="c-green">sudo sed -i</span> <span class="c-yellow">"s/${OLD_IP}/${NEW_IP}/g"</span> /opt/splunkforwarder/etc/system/local/outputs.conf
+
+<span class="c-dim"># Restart forwarder</span>
+<span class="c-green">sudo /opt/splunkforwarder/bin/splunk restart</span> <span class="c-cyan">--answer-yes</span>
+
+<span class="c-green">echo</span> <span class="c-yellow">"✓ Done. Forwarder now pointing to $NEW_IP:9997"</span>
+<span class="c-green">echo</span> <span class="c-yellow">"Run: sudo /opt/splunkforwarder/bin/splunk list forward-server -auth admin:YourPass to verify"</span></pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">bash — make script executable</span><button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button></div>
+          <pre><span class="c-green">chmod +x</span> ~/fix-splunk-ip.sh
+<span class="c-dim"># Run it next time with:</span>
+<span class="c-green">sudo ~/fix-splunk-ip.sh</span></pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">powershell — save as C:\fix-splunk-ip.ps1 on Windows</span><button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">COPY</button></div>
+          <pre><span class="c-dim"># fix-splunk-ip.ps1 — run as Administrator when network changes</span>
+
+<span class="c-green">$NEW_IP</span> = <span class="c-green">Read-Host</span> <span class="c-yellow">"Enter the NEW Splunk server IP"</span>
+<span class="c-green">$conf</span>   = <span class="c-yellow">"C:\Program Files\SplunkUniversalForwarder\etc\system\local\outputs.conf"</span>
+
+<span class="c-dim"># Show current config</span>
+<span class="c-green">Write-Host</span> <span class="c-yellow">"Current config:"</span> <span class="c-cyan">-ForegroundColor Cyan</span>
+<span class="c-green">Get-Content</span> $conf
+
+<span class="c-dim"># Replace IP in config file</span>
+<span class="c-green">$content</span> = <span class="c-green">Get-Content</span> $conf
+<span class="c-green">$OLD_IP</span>  = ($content | <span class="c-green">Select-String</span> <span class="c-yellow">"server\s*="</span>).ToString() <span class="c-cyan">-replace</span> <span class="c-yellow">'.*=\s*(\d+\.\d+\.\d+\.\d+).*'</span>,<span class="c-yellow">'$1'</span>
+<span class="c-green">Write-Host</span> <span class="c-yellow">"Replacing $OLD_IP → $NEW_IP"</span> <span class="c-cyan">-ForegroundColor Yellow</span>
+
+$content <span class="c-cyan">-replace</span> [<span class="c-green">regex</span>]::<span class="c-green">Escape</span>($OLD_IP), $NEW_IP | <span class="c-green">Set-Content</span> $conf
+
+<span class="c-dim"># Restart forwarder</span>
+<span class="c-green">Restart-Service</span> SplunkForwarder
+<span class="c-green">Write-Host</span> <span class="c-yellow">"✓ Done. Forwarder restarted pointing to $($NEW_IP):9997"</span> <span class="c-cyan">-ForegroundColor Green</span></pre>
+        </div>
+
+        <div class="info-box tip">
+          <span class="info-icon">✓</span>
+          <div>Save the PowerShell script and right-click it → <strong>Run with PowerShell (as Admin)</strong>. It'll prompt you for the new IP, update the config, and restart the service — the whole fix in under 30 seconds.</div>
+        </div>
+      </div>
+    </article>
+
+  </div>
+
+  <!-- Summary decision card -->
+  <div style="margin-top:28px;background:var(--bg-panel);border:1px solid var(--border-color);border-radius:10px;padding:22px 24px;">
+    <div style="font-family:var(--font-mono);font-size:10px;color:var(--accent-yellow);letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">Which Approach Should You Use?</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+      <div style="background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.2);border-radius:8px;padding:14px;">
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--accent-green);letter-spacing:1px;margin-bottom:8px;">BEST OPTION</div>
+        <div style="font-size:0.9rem;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Host-Only + Static IPs</div>
+        <div style="font-size:0.8rem;color:var(--text-secondary);line-height:1.6;">Set once, never touch again. Works on any network. Perfect for home ↔ college use.</div>
+      </div>
+      <div style="background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.2);border-radius:8px;padding:14px;">
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--accent-cyan);letter-spacing:1px;margin-bottom:8px;">QUICK FIX</div>
+        <div style="font-size:0.9rem;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Scripts (7.6)</div>
+        <div style="font-size:0.8rem;color:var(--text-secondary);line-height:1.6;">If you're staying on NAT/bridged. Run the script on each VM when you switch networks.</div>
+      </div>
+      <div style="background:rgba(255,107,53,0.04);border:1px solid rgba(255,107,53,0.15);border-radius:8px;padding:14px;">
+        <div style="font-family:var(--font-mono);font-size:10px;color:var(--accent-orange);letter-spacing:1px;margin-bottom:8px;">MANUAL</div>
+        <div style="font-size:0.9rem;font-weight:600;color:var(--text-primary);margin-bottom:6px;">Steps 7.2 + 7.3</div>
+        <div style="font-size:0.8rem;color:var(--text-secondary);line-height:1.6;">For one-off fixes or when you want to understand exactly what's changing and why.</div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
 </main>
 
 <!-- Progress Bar -->
@@ -1847,6 +2463,194 @@ const observer = new IntersectionObserver(entries => {
   });
 }, { threshold: 0.3 });
 phases.forEach(p => observer.observe(p));
+
+// ═══════════════════════════════════════════
+//  REAL-TIME IP COMMAND GENERATOR — PER MACHINE
+// ═══════════════════════════════════════════
+const IP_RE = /^(\d{1,3}\.){3}\d{1,3}$/;
+function isIP(v){ return IP_RE.test((v||'').trim()); }
+
+// Syntax highlighter — operates on HTML-escaped plain text
+function hl(s){
+  return s
+    .replace(/^(#.*)$/gm,'<span class="c-dim">$1</span>')
+    .replace(/\b(sudo|grep|sed|cat|echo|hostname|ip|ss|systemctl|ufw|tail|awk|service|Restart-Service|Get-Service|Get-Content|Set-Content|Write-Host|Read-Host|Get-NetIPAddress|findstr|ipconfig|Select-Object|Where-Object|Select-String|ForEach-Object)\b/g,'<span class="c-green">$1</span>')
+    .replace(/"([^"]*)"/g,'<span class="c-yellow">"$1"</span>')
+    .replace(/\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/g,'<span class="c-orange">$1</span>')
+    .replace(/\b(-auth|-AddressFamily|-InterfaceAlias|-ForegroundColor|-notlike|-replace)\b/g,'<span class="c-cyan">$1</span>');
+}
+
+function writeBlock(codeId, plainId, text){
+  // write highlighted HTML to the <pre> and plain text to hidden <textarea>
+  const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  document.getElementById(codeId).innerHTML = hl(escaped);
+  document.getElementById(plainId).value    = text;
+}
+
+function setInputStyle(inputId, okId, val){
+  const input = document.getElementById(inputId);
+  const tick  = document.getElementById(okId);
+  if(!val){ input.style.borderColor='var(--border-color)'; tick.style.opacity='0'; return; }
+  if(isIP(val)){ input.style.borderColor='rgba(0,255,136,0.45)'; tick.style.opacity='1'; }
+  else          { input.style.borderColor='rgba(255,51,85,0.5)';  tick.style.opacity='0'; }
+}
+
+// ── KALI renderer ──────────────────────────
+function renderKali(){
+  const o = document.getElementById('kali-old').value.trim() || 'OLD_KALI_IP';
+  const n = document.getElementById('kali-new').value.trim() || 'NEW_KALI_IP';
+  setInputStyle('kali-old','kali-old-ok', document.getElementById('kali-old').value.trim());
+  setInputStyle('kali-new','kali-new-ok', document.getElementById('kali-new').value.trim());
+
+  const text =
+`# ── 1. Check Splunk is running on this machine ───────────────
+sudo /opt/splunk/bin/splunk status
+
+# ── 2. Find this machine's new IP ────────────────────────────
+hostname -I
+ip addr show | grep "inet " | grep -v 127.0.0.1
+# You should see: ${n}
+
+# ── 3. Open firewall for forwarder & UI ports ─────────────────
+sudo ufw allow 9997/tcp   # forwarder data port
+sudo ufw allow 8000/tcp   # Splunk web UI
+sudo ufw reload
+sudo ufw status | grep -E "9997|8000"
+
+# ── 4. Confirm Splunk is listening on port 9997 ───────────────
+ss -tlnp | grep 9997
+# Expected: 0.0.0.0:9997  LISTEN
+
+# ── 5. If Splunk is stopped, start it ────────────────────────
+sudo /opt/splunk/bin/splunk start
+
+# ── Access Splunk UI from your laptop browser ─────────────────
+# Old URL: http://${o}:8000
+# New URL: http://${n}:8000`;
+
+  writeBlock('kali-code','kali-plain', text);
+  refreshVerify();
+}
+
+// ── UBUNTU renderer ────────────────────────
+function renderUbuntu(){
+  const o = document.getElementById('ub-old').value.trim() || 'OLD_KALI_IP';
+  const n = document.getElementById('ub-new').value.trim() || 'NEW_KALI_IP';
+  setInputStyle('ub-old','ub-old-ok', document.getElementById('ub-old').value.trim());
+  setInputStyle('ub-new','ub-new-ok', document.getElementById('ub-new').value.trim());
+
+  const text =
+`# ── 1. Show current forwarding target (should show old IP) ───
+sudo /opt/splunkforwarder/bin/splunk list forward-server \\
+  -auth admin:YourSecurePass123!
+# Expect: Active forwards: ${o}:9997
+
+# ── 2. Remove the old Kali/Splunk server IP ──────────────────
+sudo /opt/splunkforwarder/bin/splunk remove forward-server \\
+  ${o}:9997 \\
+  -auth admin:YourSecurePass123!
+
+# ── 3. Add the new Kali/Splunk server IP ─────────────────────
+sudo /opt/splunkforwarder/bin/splunk add forward-server \\
+  ${n}:9997 \\
+  -auth admin:YourSecurePass123!
+
+# ── 4. Restart the forwarder ──────────────────────────────────
+sudo /opt/splunkforwarder/bin/splunk restart
+
+# ── 5. Verify the new target is active ───────────────────────
+sudo /opt/splunkforwarder/bin/splunk list forward-server \\
+  -auth admin:YourSecurePass123!
+# Expect: Active forwards: ${n}:9997
+
+# ── 6. Tail log to confirm data is flowing ───────────────────
+sudo tail -20 /opt/splunkforwarder/var/log/splunk/splunkd.log \\
+  | grep -i "connect\\|forward\\|error"
+# Healthy: "Connected to idx=${n}:9997"`;
+
+  writeBlock('ubuntu-code','ubuntu-plain', text);
+}
+
+// ── WINDOWS renderer ───────────────────────
+function renderWindows(){
+  const o = document.getElementById('win-old').value.trim() || 'OLD_KALI_IP';
+  const n = document.getElementById('win-new').value.trim() || 'NEW_KALI_IP';
+  setInputStyle('win-old','win-old-ok', document.getElementById('win-old').value.trim());
+  setInputStyle('win-new','win-new-ok', document.getElementById('win-new').value.trim());
+
+  const text =
+`# ── 1. Show current forwarding target (should show old IP) ──
+& "C:\\Program Files\\SplunkUniversalForwarder\\bin\\splunk.exe" list forward-server -auth admin:YourSecurePass123!
+# Expect: Active forwards: ${o}:9997
+
+# ── 2. Remove the old Kali/Splunk server IP ─────────────────
+& "C:\\Program Files\\SplunkUniversalForwarder\\bin\\splunk.exe" remove forward-server ${o}:9997 -auth admin:YourSecurePass123!
+
+# ── 3. Add the new Kali/Splunk server IP ────────────────────
+& "C:\\Program Files\\SplunkUniversalForwarder\\bin\\splunk.exe" add forward-server ${n}:9997 -auth admin:YourSecurePass123!
+
+# ── 4. Restart the SplunkForwarder Windows service ──────────
+Restart-Service SplunkForwarder
+
+# ── 5. Confirm service is running ───────────────────────────
+Get-Service SplunkForwarder | Select-Object Status, DisplayName
+# Expect: Running  SplunkForwarder
+
+# ── 6. Verify the new target is active ──────────────────────
+& "C:\\Program Files\\SplunkUniversalForwarder\\bin\\splunk.exe" list forward-server -auth admin:YourSecurePass123!
+# Expect: Active forwards: ${n}:9997
+
+# ── 7. Check Windows received a new IP ──────────────────────
+Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.IPAddress -notlike "127.*"} | Select-Object IPAddress`;
+
+  writeBlock('win-code','win-plain', text);
+}
+
+// ── SPL verify strip (uses Kali new IP if available) ──
+function refreshVerify(){
+  const n = document.getElementById('kali-new').value.trim() || 'NEW_KALI_IP';
+  const spl = `index=(linux_logs OR windows_logs) earliest=-10m | stats count as events, latest(_time) as last_event by host, index | eval last_event=strftime(last_event,"%H:%M:%S") | sort -last_event`;
+  writeBlock('verify-code','verify-plain', spl);
+}
+
+// ── Tab switcher ───────────────────────────
+function switchTab(tab){
+  ['kali','ubuntu','win'].forEach(t => {
+    const panel = document.getElementById('panel-' + t);
+    const btn   = document.getElementById('tab-'   + t);
+    const active = t === tab;
+    panel.style.display = active ? 'block' : 'none';
+    btn.style.background = active ? 'rgba(0,255,136,0.08)' : 'transparent';
+    btn.style.color      = active ? 'var(--accent-green)'  : 'var(--text-secondary)';
+  });
+}
+
+// ── Copy from hidden textarea (plain text only) ───────
+function copyPlain(textareaId){
+  const ta  = document.getElementById(textareaId);
+  const btn = ta.closest('.code-block').querySelector('.copy-btn');
+  const text = ta.value;
+  const hasPlaceholder = text.includes('OLD_KALI_IP') || text.includes('NEW_KALI_IP');
+  if(!text || hasPlaceholder){
+    btn.textContent = 'ENTER IPs FIRST';
+    btn.style.color = 'var(--accent-orange)';
+    setTimeout(()=>{ btn.textContent='COPY'; btn.style.color=''; }, 2000);
+    return;
+  }
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.textContent = 'COPIED ✓';
+    btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent='COPY'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// ── Seed all panels with placeholder text on page load ──
+window.addEventListener('DOMContentLoaded', ()=>{
+  renderKali();
+  renderUbuntu();
+  renderWindows();
+  refreshVerify();
+});
 
 // Stagger phase animations
 const animObserver = new IntersectionObserver(entries => {
